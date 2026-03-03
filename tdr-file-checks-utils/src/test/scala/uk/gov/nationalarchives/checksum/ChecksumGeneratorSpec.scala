@@ -2,7 +2,6 @@ package uk.gov.nationalarchives.checksum
 
 import cats.effect.unsafe.implicits.global
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.funsuite.AnyFunSuiteLike
 
 class ChecksumGeneratorSpec extends AnyFlatSpec {
 

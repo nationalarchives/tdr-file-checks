@@ -3,6 +3,7 @@ package uk.gov.nationalarchives.fileformat
 import com.typesafe.scalalogging.Logger
 import graphql.codegen.types.{FFIDMetadataInputMatches, FFIDMetadataInputValues}
 import net.logstash.logback.argument.StructuredArguments.value
+import software.amazon.awssdk.services.s3.S3Client
 import uk.gov.nationalarchives.droid.internal.api.DroidAPI
 import uk.gov.nationalarchives.droid.internal.api.DroidAPI.APIResult
 import uk.gov.nationalarchives.fileformat.FFIDExtractor._
@@ -56,13 +57,14 @@ object FFIDExtractor {
 
   val logger: Logger = Logger[FFIDExtractor]
 
-  def apply(containerSignature: SignatureFile, droidSignature: SignatureFile): FFIDExtractor = {
+  def apply(containerSignature: SignatureFile, droidSignature: SignatureFile, s3Client: S3Client): FFIDExtractor = {
     val signatureFiles = SignatureFiles(containerSignature, droidSignature)
     val containerSignatureFile: String = containerSignature.name + containerSignature.version
     val droidSignatureFile: String = droidSignature.name + droidSignature.version
     val api: DroidAPI = DroidAPI.builder()
       .containerSignature(signatureFiles.findSignatureFile(containerSignatureFile))
       .binarySignature(signatureFiles.findSignatureFile(droidSignatureFile))
+      .s3Client(s3Client)
       .build()
     new FFIDExtractor(api)
   }

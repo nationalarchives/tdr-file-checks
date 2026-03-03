@@ -9,7 +9,7 @@ import io.circe.Printer
 import io.circe.generic.auto._
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
-import uk.gov.nationalarchives.aws.utils.s3.S3Clients.s3Async
+import uk.gov.nationalarchives.aws.utils.s3.S3Clients.{s3, s3Async}
 import uk.gov.nationalarchives.aws.utils.s3.S3Utils
 import uk.gov.nationalarchives.fileformat.{FFIDExtractor, SignatureFile}
 
@@ -30,7 +30,8 @@ class Lambda {
   private val containerSignature: SignatureFile = SignatureFile(containerSignatureName, containerSignatureVersion)
   private val droidSignature: SignatureFile = SignatureFile(droidSignatureName, droidSignatureVersion)
 
-  private val ffidExtractor: FFIDExtractor = FFIDExtractor(containerSignature, droidSignature)
+  private val s3Client = s3(configFactory.getString("s3.endpoint"))
+  private val ffidExtractor: FFIDExtractor = FFIDExtractor(containerSignature, droidSignature, s3Client)
 
   def process(input: InputStream, output: OutputStream): Unit = {
     val body = Source.fromInputStream(input).getLines().mkString

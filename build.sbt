@@ -5,12 +5,8 @@ ThisBuild / scalaVersion := "2.13.18"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "uk.gov.nationalarchives"
 
-libraryDependencies ++= Seq(
-  circeCore,
-  circeGeneric,
-  circeParser,
-  s3Utils,
-  scalaTest % Test,
+ThisBuild / javacOptions ++= Seq(
+  "--release", "21"
 )
 
 val commonMergeStrategy: String => sbtassembly.MergeStrategy = {
@@ -57,27 +53,20 @@ lazy val tdrFileChecksUtils = (project in file("tdr-file-checks-utils"))
     name := "tdr-file-checks-utils",
     libraryDependencies ++= Seq(
       typesafe,
-      circeCore,
-      circeGeneric,
-      circeParser,
-      csvParser,
       generatedGraphql,
       scalaLogging,
       logback,
       logstashLogbackEncoder,
       droidApi,
-      javaxXml,
       catsEffect,
-      apacheCommons % Test,
+      s3Utils,
       scalaTest % Test,
       mockito % Test,
-      wiremock % Test,
-      byteBuddy % Test
+      wiremock % Test
     ),
     assembly / skip := true
   )
 
-// Root: disable assembly
 lazy val root = (project in file("."))
   .disablePlugins(AssemblyPlugin)
   .dependsOn(tdrFileChecksUtils % "test->test;compile->compile")
@@ -86,23 +75,17 @@ lazy val root = (project in file("."))
     name := "tdr-file-checks",
     libraryDependencies ++= Seq(
       typesafe,
+      generatedGraphql,
       circeCore,
       circeGeneric,
       circeParser,
-      csvParser,
-      generatedGraphql,
       scalaLogging,
       logback,
       logstashLogbackEncoder,
       droidApi,
-      javaxXml,
-      apacheCommons % Test,
       scalaTest % Test,
-      mockito % Test,
-      wiremock % Test,
-      byteBuddy % Test
+      wiremock % Test
     ),
     assembly / skip := false,
     assembly / assemblyJarName := "tdr-file-checks.jar",
-    assembly / assemblyMergeStrategy := commonMergeStrategy
   )

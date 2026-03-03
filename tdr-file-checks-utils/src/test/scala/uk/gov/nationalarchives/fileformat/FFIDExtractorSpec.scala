@@ -3,8 +3,8 @@ package uk.gov.nationalarchives.fileformat
 import org.mockito.ArgumentMatchers.any
 import org.mockito.MockitoSugar
 import org.scalatest.EitherValues
-import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
+import org.scalatest.prop.TableFor3
 import uk.gov.nationalarchives.droid.core.interfaces.IdentificationMethod
 import uk.gov.nationalarchives.droid.internal.api.DroidAPI.{APIIdentificationResult, APIResult}
 import uk.gov.nationalarchives.droid.internal.api.{DroidAPI, HashAlgorithm}
@@ -14,8 +14,7 @@ import java.util
 import java.util.UUID
 import scala.jdk.CollectionConverters._
 
-//noinspection ScalaDeprecation
-class FFIDExtractorSpec extends AnyFlatSpec with MockitoSugar with EitherValues {
+class FFIDExtractorSpec extends TestUtils with MockitoSugar with EitherValues {
   val bucketName = "testbucket"
   val userId: UUID = UUID.randomUUID()
   val consignmentId: UUID = UUID.randomUUID()
@@ -35,7 +34,7 @@ class FFIDExtractorSpec extends AnyFlatSpec with MockitoSugar with EitherValues 
 
     val result = new FFIDExtractor(mockApi).ffidFile(consignmentId, fileId, "originalPath", "testbucket", "bucketKey")
 
-    val ffid = result.right.value
+    val ffid = result.value
     ffid.softwareVersion should equal(testDroidVersion)
     ffid.containerSignatureFileVersion should equal(testContainerSignatureVersion)
     ffid.binarySignatureFileVersion should equal(testBinarySignatureVersion)
@@ -48,7 +47,7 @@ class FFIDExtractorSpec extends AnyFlatSpec with MockitoSugar with EitherValues 
     when(mockApi.submit(any[URI])).thenReturn(List(mockResult).asJava)
 
     val result = new FFIDExtractor(mockApi).ffidFile(consignmentId, fileId, "originalPath", "testbucket", "bucketKey")
-    val ffid = result.right.value
+    val ffid = result.value
     val m = ffid.matches.head
     m.extension.isEmpty should be(true)
     m.puid.isEmpty should be(true)
@@ -61,7 +60,7 @@ class FFIDExtractorSpec extends AnyFlatSpec with MockitoSugar with EitherValues 
     when(mockApi.submit(any[URI])).thenReturn(List(mockResult).asJava)
 
     val result = new FFIDExtractor(mockApi).ffidFile(consignmentId, fileId, "originalPath", "testbucket", "bucketKey")
-    val ffid = result.right.value
+    val ffid = result.value
     val m = ffid.matches.head
     m.fileExtensionMismatch.contains(true)
   }
@@ -74,7 +73,7 @@ class FFIDExtractorSpec extends AnyFlatSpec with MockitoSugar with EitherValues 
     when(mockApi.submit(any[URI])).thenReturn(List(mockResult).asJava)
 
     val result = new FFIDExtractor(mockApi).ffidFile(consignmentId, fileId, "originalPath", "testbucket", "bucketKey")
-    val ffid = result.right.value
+    val ffid = result.value
     val m = ffid.matches.head
     m.formatName.contains(".formatName")
   }
@@ -89,7 +88,7 @@ class FFIDExtractorSpec extends AnyFlatSpec with MockitoSugar with EitherValues 
     when(mockApi.submit(any[URI], any[String])).thenReturn(apiResults.asJava)
 
     val result = new FFIDExtractor(mockApi).ffidFile(consignmentId, fileId, "originalPath", "testbucket", "bucketKey")
-    val ffid = result.right.value
+    val ffid = result.value
     ffid.matches.size should equal(3)
   }
 
@@ -104,8 +103,46 @@ class FFIDExtractorSpec extends AnyFlatSpec with MockitoSugar with EitherValues 
   "The ffid method" should "return a correct value if there are quotes in the filename" in {
     val mockApi = mock[DroidAPI]
     when(mockApi.submit(any[URI])).thenReturn(List().asJava)
-
     val result = new FFIDExtractor(mockApi).ffidFile(consignmentId, fileId, """rootDirectory/originalPath"withQu'ote""", "testbucket", "bucketKey")
     result.isRight should be(true)
+  }
+
+  val testFiles: TableFor3[String, List[String], Boolean] = Table(
+    ("FileName", "ExpectedPuids", "FileExtensionMismatch"),
+    ("Test.docx", List("fmt/412"), false),
+    ("Test.xlsx", List("fmt/214"), false)
+  )
+
+  forAll(testFiles) { (fileName, expectedPuids, fileExtensionMismatch) =>
+    "The ffid method" should s"put return the correct format for $fileName" in {
+      testFFIDExtractResult(fileName, "originalPath." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch)
+    }
+
+    "The ffid method" should s"return the correct format for a nested directory for $fileName" in {
+      testFFIDExtractResult(fileName, "rootDirectory/subDirectory/originalPath." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch)
+    }
+
+    "The ffid method" should s"return the correct format for a file with a backtick for $fileName" in {
+      testFFIDExtractResult(fileName, "pathwith`." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch)
+    }
+
+    "The ffid method" should s"return the correct format for a file with a space for $fileName" in {
+      testFFIDExtractResult(fileName, "path with space." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch)
+    }
+  }
+
+  def testFFIDExtractResult(fileName: String, originalFilePath: String, expectedPuids: List[String], expectedFileExtensionMismatch: Boolean): Unit = {
+    val objectKey = s"/$userId/$consignmentId/$fileId"
+    stubS3GetBytes(fileName, objectKey)
+    stubS3HeadObject(fileName, objectKey)
+    stubS3GetObjectList(userId, consignmentId, List(fileId), objectKey)
+
+    val result = new FFIDExtractor(api).ffidFile(consignmentId, fileId, originalFilePath, bucketName, objectKey)
+    result.isRight should be(true)
+    result.foreach(v => {
+      v.matches.size should equal(expectedPuids.size)
+      v.matches.exists(_.fileExtensionMismatch == Option(expectedFileExtensionMismatch)) should equal(true)
+      expectedPuids.foreach(puid => v.matches.exists(_.puid == Option(puid)) should equal (true))
+    })
   }
 }
