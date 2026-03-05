@@ -19,7 +19,7 @@ jobs:
           git_commit_gpgsign: true
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      - run: pip install requests
+      - run: pip install requests defusedxml
       - run: python .github/scripts/check_for_new_version.py
       - id: check-diff
         run: git diff --exit-code
