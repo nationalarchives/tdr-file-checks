@@ -13,7 +13,7 @@ import java.nio.file.{Files, Paths}
 import java.util.UUID
 import scala.io.Source.fromResource
 
-class LambdaSpec extends TestUtils  {
+class LambdaSpec extends TestUtils {
 
   val fileId: UUID = UUID.fromString("acea5919-25a3-4c6b-8908-fa47cc77878f")
   val consignmentId: UUID = UUID.fromString("f0a73877-6057-4bbb-a1eb-7c7b73cab586")
@@ -22,8 +22,9 @@ class LambdaSpec extends TestUtils  {
   def mockS3Response(fileName: String): StubMapping = {
     val filePath = getClass.getResource(s"/testfiles/$fileName").getFile
     val bytes = Files.readAllBytes(Paths.get(filePath))
-    wiremockS3.stubFor(get(urlEqualTo( s"/$fileName"))
-      .willReturn(aResponse().withStatus(200).withBody(bytes))
+    wiremockS3.stubFor(
+      get(urlEqualTo(s"/$fileName"))
+        .willReturn(aResponse().withStatus(200).withBody(bytes))
     )
   }
 
@@ -33,7 +34,7 @@ class LambdaSpec extends TestUtils  {
 
   "The process method" should "download the file from S3 bucket and return the correct file ID, checksum and FFID" in {
     val outputStream = new ByteArrayOutputStream()
-    val expectedChecksum = "252c2811bd57fc3bcc7683bd6d9515aeeab0758bf1c3e71718851c7831ca848e"
+    val expectedChecksum = "feb8c01fd4fd0d6e56d9a630ef82b244df25f141ac2d611115cda74fa0a2a2a7"
     val fileName = "Test.docx"
     mockS3Response(fileName)
     stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
@@ -47,7 +48,7 @@ class LambdaSpec extends TestUtils  {
 
   "The process method" should "succeed if the file already exists (do not download from the S3 bucket) and return the correct file ID, checksum and FFID" in {
     val outputStream = new ByteArrayOutputStream()
-    val expectedChecksum = "252c2811bd57fc3bcc7683bd6d9515aeeab0758bf1c3e71718851c7831ca848e"
+    val expectedChecksum = "feb8c01fd4fd0d6e56d9a630ef82b244df25f141ac2d611115cda74fa0a2a2a7"
     val fileName = "Test.docx"
     stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
     stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
@@ -63,7 +64,7 @@ class LambdaSpec extends TestUtils  {
     validateFileChecksResult(expectedChecksum, decoded)
   }
 
-   "The process method" should "throw an exception if the file is not found in S3" in {
+  "The process method" should "throw an exception if the file is not found in S3" in {
     val event = createEvent("file_no_key")
     val exception = intercept[RuntimeException] {
       val fileName = "Test.docx"
@@ -91,7 +92,7 @@ class LambdaSpec extends TestUtils  {
 
   "The process method" should "calculate the correct checksum for a file with two chunks" in {
     val outputStream = new ByteArrayOutputStream()
-    val expectedChecksum = "c08c59a10f61526ae02808f761d2fd75c09cb2d77d608dc01fdbc35e3fdaf11d"
+    val expectedChecksum = "2d18255f3cae74523d18e372433aa78caca19001d400add39f46fafb1c60daf2"
     val fileName = "more_than_one_meg"
     mockS3Response(fileName)
     stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
@@ -103,10 +104,10 @@ class LambdaSpec extends TestUtils  {
     validateFileChecksResult(expectedChecksum, decoded)
   }
 
-  private def validateFileChecksResult(expectedChecksum: String, maybeResult: Option[FileChecksResult]) = {
+  private def validateFileChecksResult(expectedChecksum: String, maybeResult: Option[FileChecksResult]): Unit = {
     maybeResult.isDefined should be(true)
     maybeResult.get.checksum.sha256Checksum should equal(expectedChecksum)
     maybeResult.get.checksum.fileId should equal(fileId)
-    maybeResult.get.fileFormat.fileId should equal(fileId)
+    maybeResult.get.ffidMetadataInputValues.fileId should equal(fileId)
   }
 }

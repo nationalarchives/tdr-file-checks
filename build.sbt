@@ -1,4 +1,3 @@
-
 import Dependencies.*
 
 ThisBuild / scalaVersion := "2.13.18"
@@ -26,7 +25,6 @@ val commonMergeStrategy: String => sbtassembly.MergeStrategy = {
   case x                                             => MergeStrategy.first
 }
 
-
 // Common assembly merge strategy
 ThisBuild / assembly / assemblyMergeStrategy := {
   case PathList("META-INF", "MANIFEST.MF")       => MergeStrategy.discard
@@ -45,7 +43,6 @@ ThisBuild / Test / envVars := Map(
   "AWS_REQUEST_CHECKSUM_CALCULATION" -> "when_required",
   "AWS_RESPONSE_CHECKSUM_CALCULATION" -> "when_required"
 )
-
 
 lazy val tdrFileChecksUtils = (project in file("tdr-file-checks-utils"))
   .enablePlugins(AssemblyPlugin)

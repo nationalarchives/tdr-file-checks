@@ -22,5 +22,4 @@ object Dependencies {
   lazy val javaxXml =  "org.glassfish.jaxb" % "jaxb-runtime" % "4.0.6"
   lazy val byteBuddy = "net.bytebuddy" % "byte-buddy" % "1.18.3"
   lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.1"
-
 }

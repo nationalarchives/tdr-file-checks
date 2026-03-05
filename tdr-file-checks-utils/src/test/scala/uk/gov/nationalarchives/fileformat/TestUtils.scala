@@ -22,18 +22,10 @@ import scala.reflect.io.Directory
 import scala.util.{Failure, Success, Using}
 
 class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterAll with TableDrivenPropertyChecks {
-  val testBinarySignatureVersion = "./src/test/resources/containers/droid_signatures.xml"
-  val testContainerSignatureVersion = "./src/test/resources/containers/container_signatures.xml"
 
   val s3Client: S3Client = S3Client.builder
     .region(Region.EU_WEST_2)
     .endpointOverride(URI.create("http://localhost:8003/"))
-    .build()
-
-  val api: DroidAPI = DroidAPI.builder()
-    .containerSignature(Path.of(testContainerSignatureVersion))
-    .binarySignature(Path.of(testBinarySignatureVersion))
-    .s3Client(s3Client)
     .build()
 
   val wiremockS3 = new WireMockServer(8003)
@@ -41,7 +33,7 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
   def getFile(filePath: String): String = {
     Using(fromFile(filePath)) { file => file.mkString } match {
       case Failure(exception) => throw exception
-      case Success(value) => value
+      case Success(value)     => value
     }
   }
 
@@ -69,7 +61,7 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
       val buffer: Array[Byte] = new Array[Byte](length)
       raf.read(buffer) match {
         case br: Int if br == length => buffer
-        case br: Int => util.Arrays.copyOf(buffer, br)
+        case br: Int                 => util.Arrays.copyOf(buffer, br)
       }
     }
   }
@@ -77,12 +69,14 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
   def stubS3HeadObject(fileName: String, urlStub: String): StubMapping = {
     val filePath = s"./src/test/resources/testfiles/$fileName"
     val bytes = Files.readAllBytes(Paths.get(filePath))
-    wiremockS3.stubFor(head(urlEqualTo(urlStub))
-      .willReturn(aResponse()
-        .withStatus(200)
-        .withHeaders(new HttpHeaders(List(new HttpHeader("Content-Length", bytes.size.toString), new HttpHeader("Last-Modified", "Mon, 03 Mar 2025 17:29:48 GMT")).asJava))
-        .withBody("".getBytes)
-      )
+    wiremockS3.stubFor(
+      head(urlEqualTo(urlStub))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withHeaders(new HttpHeaders(List(new HttpHeader("Content-Length", bytes.size.toString), new HttpHeader("Last-Modified", "Mon, 03 Mar 2025 17:29:48 GMT")).asJava))
+            .withBody("".getBytes)
+        )
     )
   }
 
@@ -90,61 +84,52 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
     val filePath = s"./src/test/resources/testfiles/$fileName"
     val bytes = Files.readAllBytes(Paths.get(filePath))
 
-    wiremockS3.stubFor(get(urlEqualTo(urlStub)).withHeader("range", equalTo("bytes=0-4194303"))
-      .willReturn(aResponse()
-        .withStatus(200)
-        .withBody(bytes.slice(0, math.min(bytes.size, 4096))),
-      )
+    wiremockS3.stubFor(
+      get(urlEqualTo(urlStub))
+        .withHeader("range", equalTo("bytes=0-4194303"))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(bytes.slice(0, math.min(bytes.size, 4096)))
+        )
     )
 
-    wiremockS3.stubFor(get(urlEqualTo(urlStub)).withHeader("range", equalTo("bytes=4096-8191"))
-      .willReturn(aResponse()
-        .withStatus(200)
-        .withBody(bytes.slice(4096, math.min(bytes.size, 8192))),
-      )
+    wiremockS3.stubFor(
+      get(urlEqualTo(urlStub))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(bytes.slice(0, math.min(bytes.size, 4096)))
+        )
     )
-  }
 
-  def stubS3GetBytesNoHeader(fileName: String, urlStub: String): Unit = {
-    val filePath = s"./src/test/resources/testfiles/$fileName"
-    val bytes = Files.readAllBytes(Paths.get(filePath))
-
-    wiremockS3.stubFor(get(urlEqualTo(urlStub))
-      .willReturn(aResponse()
-        .withStatus(200)
-        .withBody(bytes.slice(0, math.min(bytes.size, 4096))),
-      )
-    )
-    wiremockS3.stubFor(get(urlEqualTo(urlStub))
-      .willReturn(aResponse()
-        .withStatus(200)
-        .withBody(bytes.slice(4096, math.min(bytes.size, 8192))),
-      )
+    wiremockS3.stubFor(
+      get(urlEqualTo(urlStub))
+        .withHeader("range", equalTo("bytes=4096-8191"))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withBody(bytes.slice(4096, math.min(bytes.size, 8192)))
+        )
     )
   }
 
   def stubS3GetObjectList(userId: UUID, consignmentId: UUID, fileIds: List[UUID], urlStub: String): StubMapping = {
     val params = Map("list-type" -> equalTo("2"), "prefix" -> equalTo(urlStub)).asJava
     val response = <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-      {fileIds.map(fileId =>
-        <Contents>
+      {
+      fileIds.map(fileId => <Contents>
           <Key>{userId}/{consignmentId}/{fileId}</Key>
           <LastModified>2009-10-12T17:50:30.000Z</LastModified>
           <ETag>"fba9dede5f27731c9771645a39863328"</ETag>
           <Size>1</Size>
-        </Contents>
-      )}
+        </Contents>)
+    }
     </ListBucketResult>
     wiremockS3.stubFor(
       get(anyUrl())
         .withQueryParams(params)
         .willReturn(okXml(response.toString))
-    )
-  }
-
-  def mockS3Error(): StubMapping = {
-    wiremockS3.stubFor(get(anyUrl())
-      .willReturn(aResponse().withStatus(404))
     )
   }
 }

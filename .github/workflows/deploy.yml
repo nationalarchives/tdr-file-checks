@@ -1,4 +1,4 @@
-name: TDR Deploy File Format Lambda
+name: TDR Deploy File Checks Lambda
 on:
   workflow_dispatch:
     inputs:
@@ -15,7 +15,7 @@ on:
         description: 'Version to deploy'
         required: true
 
-run-name: Deploying File Format Lambda ${{inputs.to-deploy}} to ${{inputs.environment}}
+run-name: Deploying File Checks Lambda ${{inputs.to-deploy}} to ${{inputs.environment}}
 permissions:
   id-token: write
   contents: write

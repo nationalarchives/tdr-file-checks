@@ -11,7 +11,7 @@ import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import uk.gov.nationalarchives.aws.utils.s3.S3Clients.{s3, s3Async}
 import uk.gov.nationalarchives.aws.utils.s3.S3Utils
-import uk.gov.nationalarchives.fileformat.{FFIDExtractor, SignatureFile}
+import uk.gov.nationalarchives.fileformat.{DroidFileChecksResultExtractor, DroidFileChecksResult, SignatureFile}
 
 import java.io.{File, InputStream, OutputStream}
 import java.nio.file.Paths
@@ -31,26 +31,30 @@ class Lambda {
   private val droidSignature: SignatureFile = SignatureFile(droidSignatureName, droidSignatureVersion)
 
   private val s3Client = s3(configFactory.getString("s3.endpoint"))
-  private val ffidExtractor: FFIDExtractor = FFIDExtractor(containerSignature, droidSignature, s3Client)
+  private val droidFileChecksResultExtractor: DroidFileChecksResultExtractor = DroidFileChecksResultExtractor(containerSignature, droidSignature, s3Client)
 
   def process(input: InputStream, output: OutputStream): Unit = {
     val body = Source.fromInputStream(input).getLines().mkString
     for {
       fileChecksParameters <- IO.fromEither(decode[FileChecksParameters](body))
       _ <- download(fileChecksParameters)
-      checksum <- ChecksumGenerator.generate(getFilePath(fileChecksParameters), configFactory.getInt("chunk.size"))
-      extractedFFID <- IO.fromEither(extractFFID(fileChecksParameters))
-      output <- Resource.fromAutoCloseable(IO(output)).use(outputStream => {
-        outputStream.write(FileChecksResult(Checksum(fileChecksParameters.fileId, checksum), extractedFFID).asJson.printWith(Printer.noSpaces).getBytes())
-        IO.unit
-      })
+      ffidAndChecksum <- IO.fromEither(extractFFID(fileChecksParameters))
+      ffidMetadataInputValues = ffidAndChecksum.ffidMetadataInputValues
+      checksum = Checksum(fileChecksParameters.fileId, ffidAndChecksum.checksum)
+      output <- Resource
+        .fromAutoCloseable(IO(output))
+        .use(outputStream => {
+          outputStream.write(FileChecksResult(checksum, ffidMetadataInputValues).asJson.printWith(Printer.noSpaces).getBytes())
+          IO.unit
+        })
     } yield output
   }.unsafeRunSync()
 
-  private def getFilePath(fileChecksParameters: FileChecksParameters) = s"""${configFactory.getString("root.directory")}/${fileChecksParameters.consignmentId}/${fileChecksParameters.originalPath}"""
+  private def getFilePath(fileChecksParameters: FileChecksParameters) =
+    s"""${configFactory.getString("root.directory")}/${fileChecksParameters.consignmentId}/${fileChecksParameters.originalPath}"""
 
-  private def extractFFID(fileChecksParameters: FileChecksParameters): Either[Throwable, FFIDMetadataInputValues] = for {
-    metadata <- ffidExtractor.ffidFile(
+  private def extractFFID(fileChecksParameters: FileChecksParameters): Either[Throwable, DroidFileChecksResult] = for {
+    metadata <- droidFileChecksResultExtractor.ffidAndChecksumResult(
       fileChecksParameters.consignmentId,
       fileChecksParameters.fileId,
       fileChecksParameters.originalPath,
@@ -74,8 +78,16 @@ class Lambda {
 
 case class S3Bucket(name: String, objectKey: String)
 
-case class FileChecksParameters(consignmentId: UUID, fileId: UUID, originalPath: String, userId: UUID, s3SourceBucket: S3Bucket, s3CleanDestinationBucket: Option[S3Bucket], s3DirtyBucket: Option[S3Bucket])
+case class FileChecksParameters(
+    consignmentId: UUID,
+    fileId: UUID,
+    originalPath: String,
+    userId: UUID,
+    s3SourceBucket: S3Bucket,
+    s3CleanDestinationBucket: Option[S3Bucket],
+    s3DirtyBucket: Option[S3Bucket]
+)
 
 case class Checksum(fileId: UUID, sha256Checksum: String)
 
-case class FileChecksResult(checksum: Checksum, fileFormat: FFIDMetadataInputValues)
+case class FileChecksResult(checksum: Checksum, ffidMetadataInputValues: FFIDMetadataInputValues)
