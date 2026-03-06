@@ -78,7 +78,7 @@ if __name__ == '__main__':
     print(f"Latest DROID version: {latest_droid_version}")
     print(f"Latest Containers version: {latest_containers_version}")
 
-    conf_path = "../../src/main/resources/application.conf"
+    conf_path = "src/main/resources/application.conf"
 
     # Read file and update DROID and Containers versions
     with open(conf_path, "r") as conf:
