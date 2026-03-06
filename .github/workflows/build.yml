@@ -1,5 +1,6 @@
 name: TDR Tag and pre deploy
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -19,7 +20,7 @@ jobs:
         DROID_DOWNLOAD_NAME=$(grep 'droid.signature.name' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
         CONTAINERS_VERSION=$(grep 'containers.version' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
         CONTAINERS_DOWNLOAD_NAME=$(grep 'containers.signature.name' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-  # Persist them as GitHub Actions environment variables
+
         echo "DROID_VERSION_ENV=$DROID_VERSION" >> $GITHUB_ENV
         echo "DROID_DOWNLOAD_NAME_ENV=$DROID_DOWNLOAD_NAME" >> $GITHUB_ENV
         echo "CONTAINERS_VERSION_ENV=$CONTAINERS_VERSION" >> $GITHUB_ENV
