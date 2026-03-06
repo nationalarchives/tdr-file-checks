@@ -1,4 +1,4 @@
-package uk.gov.nationalarchives.fileformat
+package uk.gov.nationalarchives.filechecksutils
 
 import com.typesafe.scalalogging.Logger
 

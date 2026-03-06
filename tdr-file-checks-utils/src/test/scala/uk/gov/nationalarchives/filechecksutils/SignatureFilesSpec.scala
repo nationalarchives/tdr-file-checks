@@ -1,11 +1,9 @@
-package uk.gov.nationalarchives.fileformat
+package uk.gov.nationalarchives.filechecksutils
 
-import org.mockito.MockitoSugar
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
-import org.scalatest.prop.TableDrivenPropertyChecks
 
-class SignatureFilesSpec extends AnyFlatSpec with MockitoSugar with TableDrivenPropertyChecks {
+class SignatureFilesSpec extends AnyFlatSpec {
   private val containerSignatureName = "container-signature-"
   private val containerSignatureVersion = "20240715"
   private val droidSignatureName = "DROID_SignatureFile_V"

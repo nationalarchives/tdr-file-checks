@@ -38,6 +38,7 @@ ThisBuild / assembly / assemblyMergeStrategy := {
 // Common test settings
 ThisBuild / Test / fork := true
 ThisBuild / Test / envVars := Map(
+  "AWS_REGION" -> "eu-west-2",
   "AWS_ACCESS_KEY_ID" -> "test",
   "AWS_SECRET_ACCESS_KEY" -> "test",
   "AWS_REQUEST_CHECKSUM_CALCULATION" -> "when_required",

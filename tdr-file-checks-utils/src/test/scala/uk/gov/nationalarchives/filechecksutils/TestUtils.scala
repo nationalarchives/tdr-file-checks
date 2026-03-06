@@ -1,4 +1,4 @@
-package uk.gov.nationalarchives.fileformat
+package uk.gov.nationalarchives.filechecksutils
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock._
@@ -9,11 +9,10 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
-import uk.gov.nationalarchives.droid.internal.api.DroidAPI
 
 import java.io.{File, RandomAccessFile}
 import java.net.URI
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Paths}
 import java.util
 import java.util.UUID
 import scala.io.Source.fromFile

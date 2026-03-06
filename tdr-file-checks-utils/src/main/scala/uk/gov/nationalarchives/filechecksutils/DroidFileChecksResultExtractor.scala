@@ -1,4 +1,4 @@
-package uk.gov.nationalarchives.fileformat
+package uk.gov.nationalarchives.filechecksutils
 
 import com.typesafe.scalalogging.Logger
 import graphql.codegen.types.{FFIDMetadataInputMatches, FFIDMetadataInputValues}
@@ -6,7 +6,7 @@ import net.logstash.logback.argument.StructuredArguments.value
 import software.amazon.awssdk.services.s3.S3Client
 import uk.gov.nationalarchives.droid.internal.api.DroidAPI.APIResult
 import uk.gov.nationalarchives.droid.internal.api.{DroidAPI, HashAlgorithm}
-import uk.gov.nationalarchives.fileformat.DroidFileChecksResultExtractor._
+import uk.gov.nationalarchives.filechecksutils.DroidFileChecksResultExtractor._
 
 import java.net.URI
 import java.nio.file.Paths
@@ -20,7 +20,7 @@ class DroidFileChecksResultExtractor(api: DroidAPI) {
     Paths.get(filePath).getFileName.toString.split("\\.").last
   }
 
-  def ffidAndChecksumResult(consignmentId: UUID, fileId: UUID, originalPath: String, s3Bucket: String, s3ObjectKey: String): Either[Throwable, DroidFileChecksResult] = {
+  def fileChecksResult(consignmentId: UUID, fileId: UUID, originalPath: String, s3Bucket: String, s3ObjectKey: String): Either[Throwable, DroidFileChecksResult] = {
     Try {
       val extension = fileExtension(originalPath)
       val droidVersion = api.getDroidVersion
@@ -41,7 +41,7 @@ class DroidFileChecksResultExtractor(api: DroidAPI) {
       }
 
       logger.info(
-        "File metadata with {} matches found for file ID {} in consignment ID {}",
+        "File format metadata with {} matches found for file ID {} in consignment ID {}",
         value("matchCount", matches.length),
         value("fileId", fileId),
         value("consignmentId", consignmentId)
