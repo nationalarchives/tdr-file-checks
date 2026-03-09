@@ -1,0 +1,42 @@
+name: TDR Tag and pre deploy
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+permissions:
+  id-token: write
+  contents: write
+jobs:
+  pre-deploy:
+    uses: nationalarchives/tdr-github-actions/.github/workflows/lambda_build.yml@b6ba669dcee7fd4ac089c2e9fb234c48ddd93ab5 # v0.0.15
+    with:
+      lambda-name: file-checks
+      repo-name: tdr-file-checks
+      artifact-name: file-checks
+      java-version: '21'
+      build-command: |
+        DROID_VERSION=$(grep 'droid.version' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+        DROID_DOWNLOAD_NAME=$(grep 'droid.signature.name' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+        CONTAINERS_VERSION=$(grep 'containers.version' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+        CONTAINERS_DOWNLOAD_NAME=$(grep 'containers.signature.name' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+
+        echo "DROID_VERSION_ENV=$DROID_VERSION" >> $GITHUB_ENV
+        echo "DROID_DOWNLOAD_NAME_ENV=$DROID_DOWNLOAD_NAME" >> $GITHUB_ENV
+        echo "CONTAINERS_VERSION_ENV=$CONTAINERS_VERSION" >> $GITHUB_ENV
+        echo "CONTAINERS_DOWNLOAD_NAME_ENV=$CONTAINERS_DOWNLOAD_NAME" >> $GITHUB_ENV
+
+        curl -L "https://cdn.nationalarchives.gov.uk/documents/${DROID_DOWNLOAD_NAME_ENV}${DROID_VERSION_ENV}.xml" -o "src/main/resources/${DROID_DOWNLOAD_NAME_ENV}${DROID_VERSION_ENV}.xml"
+        curl -L "https://cdn.nationalarchives.gov.uk/documents/${CONTAINERS_DOWNLOAD_NAME_ENV}${CONTAINERS_VERSION_ENV}.xml" -o "src/main/resources/${CONTAINERS_DOWNLOAD_NAME_ENV}${CONTAINERS_VERSION_ENV}.xml"
+        sbt assembly
+    secrets:
+      MANAGEMENT_ACCOUNT: ${{ secrets.MANAGEMENT_ACCOUNT }}
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+  deploy:
+    needs: pre-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: gh workflow run deploy.yml -f environment=intg -f to-deploy=${{ needs.pre-deploy.outputs.next-version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
