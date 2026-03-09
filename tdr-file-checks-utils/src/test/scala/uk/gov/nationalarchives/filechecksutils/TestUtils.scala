@@ -10,14 +10,13 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 
-import java.io.{File, RandomAccessFile}
+import java.io.RandomAccessFile
 import java.net.URI
 import java.nio.file.{Files, Paths}
 import java.util
 import java.util.UUID
 import scala.io.Source.fromFile
 import scala.jdk.CollectionConverters.{IterableHasAsJava, MapHasAsJava}
-import scala.reflect.io.Directory
 import scala.util.{Failure, Success, Using}
 
 class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterAll with TableDrivenPropertyChecks {
@@ -43,10 +42,6 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
   override def afterEach(): Unit = {
     wiremockS3.resetAll()
     wiremockS3.stop()
-    val runningFiles = new File(s"./src/test/resources/testfiles/running-files/")
-    if (runningFiles.exists()) {
-      new Directory(runningFiles).deleteRecursively()
-    }
   }
 
   def getBytesForRange(filePath: String, range: String): Array[Byte] = {

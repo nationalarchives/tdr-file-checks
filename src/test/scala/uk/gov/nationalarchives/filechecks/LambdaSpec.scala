@@ -59,6 +59,14 @@ class LambdaSpec extends TestUtils {
     validateFileChecksResult(expectedChecksum, decoded)
   }
 
+  "The process method" should "return an error when it throws a runtime exception" in {
+    val outputStream = new ByteArrayOutputStream()
+    val exception = intercept[RuntimeException] {
+      new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
+    }
+    exception.getMessage should equal("Error processing file id acea5919-25a3-4c6b-8908-fa47cc77878f with original path ten_bytes")
+  }
+
   private def validateFileChecksResult(expectedChecksum: String, maybeResult: Option[FileChecksResult]): Unit = {
     maybeResult.isDefined should be(true)
     maybeResult.get.checksum.sha256Checksum should equal(expectedChecksum)

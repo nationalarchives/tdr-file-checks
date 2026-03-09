@@ -66,7 +66,7 @@ case class FileChecksParameters(
     userId: UUID,
     s3SourceBucket: S3Bucket,
     s3CleanDestinationBucket: Option[S3Bucket],
-    s3DirtyBucket: Option[S3Bucket]
+    s3QuarantineBucket: Option[S3Bucket]
 )
 
 case class Checksum(fileId: UUID, sha256Checksum: String)
