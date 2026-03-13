@@ -58,9 +58,10 @@ lazy val tdrFileChecksUtils = (project in file("tdr-file-checks-utils"))
       droidApi,
       catsEffect,
       s3Utils,
+      awsGuardDuty,
       scalaTest % Test,
       mockito % Test,
-      wiremock % Test
+      wiremock % Test,
     ),
     assembly / skip := true
   )

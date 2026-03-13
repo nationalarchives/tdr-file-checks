@@ -16,6 +16,9 @@ class LambdaSpec extends TestUtils {
   val consignmentId: UUID = UUID.fromString("f0a73877-6057-4bbb-a1eb-7c7b73cab586")
   val userId: UUID = UUID.fromString("bd4cbe2e-b752-4432-8aec-a3234b9d4339")
 
+  private val noThreatsFound = "NO_THREATS_FOUND"
+  private val threatsFound = "THREATS_FOUND"
+  
   def createEvent(location: String): ByteArrayInputStream = {
     new ByteArrayInputStream(fromResource(s"json/$location.json").mkString.getBytes())
   }
@@ -26,6 +29,7 @@ class LambdaSpec extends TestUtils {
     val fileName = "Test.docx"
     stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
     stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
+    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
@@ -39,6 +43,7 @@ class LambdaSpec extends TestUtils {
     val fileName = "ten_bytes"
     stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
     stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
+    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
@@ -52,6 +57,7 @@ class LambdaSpec extends TestUtils {
     val fileName = "more_than_one_meg"
     stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
     stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
+    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event_large_file"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
@@ -65,6 +71,93 @@ class LambdaSpec extends TestUtils {
       new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
     }
     exception.getMessage should equal("Error processing file id acea5919-25a3-4c6b-8908-fa47cc77878f with original path ten_bytes")
+  }
+
+  "The process method" should "populate antivirus field with NO_THREATS_FOUND result" in {
+    val outputStream = new ByteArrayOutputStream()
+    val fileName = "Test.docx"
+    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
+    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
+    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+
+    new Lambda().process(createEvent("file_event"), outputStream)
+    val result = outputStream.toByteArray.map(_.toChar).mkString
+    val decoded = decode[FileChecksResult](result).toOption
+
+    verifyAntivirus(decoded, noThreatsFound)
+  }
+
+  "The process method" should "not copy to quarantine bucket when not provided for THREATS_FOUND result" in {
+    val outputStream = new ByteArrayOutputStream()
+    val fileName = "Test.docx"
+    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
+    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
+    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", threatsFound)
+
+    new Lambda().process(createEvent("file_event"), outputStream)
+    val result = outputStream.toByteArray.map(_.toChar).mkString
+    val decoded = decode[FileChecksResult](result).toOption
+
+    verifyAntivirus(decoded, threatsFound)
+  }
+
+  "The process method" should "not copy to clean bucket when not provided for NO_THREATS_FOUND result" in {
+    val outputStream = new ByteArrayOutputStream()
+    val fileName = "Test.docx"
+    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
+    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
+    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+
+    new Lambda().process(createEvent("file_event"), outputStream)
+    val result = outputStream.toByteArray.map(_.toChar).mkString
+    val decoded = decode[FileChecksResult](result).toOption
+
+    verifyAntivirus(decoded, noThreatsFound)
+  }
+
+  "The process method" should "copy to quarantine bucket when provided for THREATS_FOUND result" in {
+    val outputStream = new ByteArrayOutputStream()
+    val fileName = "Test.docx"
+    val destinationBucket = "quarantineBucket"
+    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
+    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
+    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", threatsFound)
+    // Copy to quarantine bucket
+    stubS3HeadObject(fileName, s"/$fileName")
+    stubS3PutObject(s"/$destinationBucket/$fileName")
+
+    new Lambda().process(createEvent("file_event_with_quarantine_bucket"), outputStream)
+    val result = outputStream.toByteArray.map(_.toChar).mkString
+    val decoded = decode[FileChecksResult](result).toOption
+
+    verifyAntivirus(decoded, threatsFound)
+  }
+
+  "The process method" should "copy to clean bucket when provided for NO_THREATS_FOUND result" in {
+    val outputStream = new ByteArrayOutputStream()
+    val fileName = "Test.docx"
+    val cleanDestinationBucket = "cleanBucket"
+    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
+    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
+    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+    // Copy to clean bucket
+    stubS3HeadObject(fileName, s"/$fileName")
+    stubS3PutObject(s"/$cleanDestinationBucket/$fileName")
+
+    new Lambda().process(createEvent("file_event_with_clean_bucket"), outputStream)
+    val result = outputStream.toByteArray.map(_.toChar).mkString
+    val decoded = decode[FileChecksResult](result).toOption
+
+    verifyAntivirus(decoded, noThreatsFound)
+  }
+
+  private def verifyAntivirus(decoded: Option[FileChecksResult], expectedScanResult: String): Unit = {
+    decoded.isDefined should be(true)
+    decoded.get.antivirus.software should equal("awsGuardDutyMalwareScan")
+    decoded.get.antivirus.softwareVersion should equal("AWSGuardDuty")
+    decoded.get.antivirus.result should equal(expectedScanResult)
+    decoded.get.antivirus.datetime should be > 0L
+    decoded.get.antivirus.fileId should equal(fileId)
   }
 
   private def validateFileChecksResult(expectedChecksum: String, maybeResult: Option[FileChecksResult]): Unit = {

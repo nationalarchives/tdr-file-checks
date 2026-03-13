@@ -6,7 +6,7 @@ object Dependencies {
 
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.19"
   lazy val generatedGraphql = "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.438"
-  lazy val s3Utils = "uk.gov.nationalarchives" %% "s3-utils" % "0.1.308"
+  lazy val s3Utils = "uk.gov.nationalarchives" %% "s3-utils" % "0.1.320"
   lazy val typesafe = "com.typesafe" % "config" % "1.4.5"
   lazy val circeCore = "io.circe" %% "circe-core" % circeVersion
   lazy val circeGeneric = "io.circe" %% "circe-generic" % circeVersion
@@ -22,4 +22,5 @@ object Dependencies {
   lazy val javaxXml =  "org.glassfish.jaxb" % "jaxb-runtime" % "4.0.6"
   lazy val byteBuddy = "net.bytebuddy" % "byte-buddy" % "1.18.3"
   lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.1"
+  lazy val awsGuardDuty = "software.amazon.awssdk" % "guardduty" % "2.20.121"
 }
