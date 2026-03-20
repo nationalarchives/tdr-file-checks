@@ -97,8 +97,10 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
   def stubS3PutObject(urlStub: String): StubMapping = {
     wiremockS3.stubFor(
       put(urlEqualTo(urlStub))
-        .willReturn(aResponse()
-          .withStatus(200))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+        )
     )
   }
 

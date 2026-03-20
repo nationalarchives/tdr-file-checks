@@ -18,7 +18,7 @@ class LambdaSpec extends TestUtils {
 
   private val noThreatsFound = "NO_THREATS_FOUND"
   private val threatsFound = "THREATS_FOUND"
-  
+
   def createEvent(location: String): ByteArrayInputStream = {
     new ByteArrayInputStream(fromResource(s"json/$location.json").mkString.getBytes())
   }
