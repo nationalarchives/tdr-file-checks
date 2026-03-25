@@ -7,7 +7,7 @@ object Dependencies {
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.19"
   lazy val generatedGraphql = "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.438"
   lazy val s3Utils = "uk.gov.nationalarchives" %% "s3-utils" % "0.1.308"
-  lazy val typesafe = "com.typesafe" % "config" % "1.4.5"
+  lazy val typesafe = "com.typesafe" % "config" % "1.4.6"
   lazy val circeCore = "io.circe" %% "circe-core" % circeVersion
   lazy val circeGeneric = "io.circe" %% "circe-generic" % circeVersion
   lazy val circeParser = "io.circe" %% "circe-parser" % circeVersion
