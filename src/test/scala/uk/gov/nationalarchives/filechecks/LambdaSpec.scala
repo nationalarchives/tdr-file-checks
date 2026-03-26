@@ -87,7 +87,7 @@ class LambdaSpec extends TestUtils {
     verifyAntivirus(decoded, noThreatsFound)
   }
 
-  "The process method" should "not copy to quarantine bucket when not provided for THREATS_FOUND result" in {
+  "The process method" should "not copy to quarantine bucket when s3QuarantineBucket is missing in the input for THREATS_FOUND result" in {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "Test.docx"
     stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
@@ -101,7 +101,7 @@ class LambdaSpec extends TestUtils {
     verifyAntivirus(decoded, threatsFound)
   }
 
-  "The process method" should "not copy to clean bucket when not provided for NO_THREATS_FOUND result" in {
+  "The process method" should "not copy to clean bucket when s3CleanDestinationBucket is missing in the input for NO_THREATS_FOUND result" in {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "Test.docx"
     stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
@@ -115,7 +115,7 @@ class LambdaSpec extends TestUtils {
     verifyAntivirus(decoded, noThreatsFound)
   }
 
-  "The process method" should "copy to quarantine bucket when provided for THREATS_FOUND result" in {
+  "The process method" should "copy to quarantine bucket when s3QuarantineBucket is provided in the input for THREATS_FOUND result" in {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "Test.docx"
     val destinationBucket = "quarantineBucket"
@@ -133,7 +133,7 @@ class LambdaSpec extends TestUtils {
     verifyAntivirus(decoded, threatsFound)
   }
 
-  "The process method" should "copy to clean bucket when provided for NO_THREATS_FOUND result" in {
+  "The process method" should "copy to clean bucket when s3CleanDestinationBucket is provided in the input for NO_THREATS_FOUND result" in {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "Test.docx"
     val cleanDestinationBucket = "cleanBucket"

@@ -8,7 +8,7 @@ object ApplicationConfig {
   val containerSignatureVersion: String = configFactory.getString("containers.version")
   val droidSignatureName: String = configFactory.getString("droid.signature.name")
   val droidSignatureVersion: String = configFactory.getString("droid.version")
-  val POLL_MALWARE_SCAN_COMPLETE_AWAIT_SECS: Long = configFactory.getLong("poll_malware_scan_complete.awaits.secs")
+  val pollMalwareScanCompleteAwaitSecs: Long = configFactory.getLong("poll_malware_scan_complete.await.secs")
   val version: String = sys.env.getOrElse("AWS_LAMBDA_FUNCTION_VERSION", "$LATEST")
   val s3Endpoint: String = configFactory.getString("s3.endpoint")
 }

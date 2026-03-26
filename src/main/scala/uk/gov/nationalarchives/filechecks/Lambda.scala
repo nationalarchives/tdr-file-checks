@@ -31,8 +31,8 @@ class Lambda {
   private val droidFileChecksResultExtractor: DroidFileChecksResultExtractor = DroidFileChecksResultExtractor(containerSignature, droidSignature, s3Client)
   private val guardDutyScanResultExtractor: GuardDutyScanResultExtractor = GuardDutyScanResultExtractor(s3AsyncClient)
 
-  def process(input: InputStream, output: OutputStream): Unit = {
-    val body = Source.fromInputStream(input).getLines().mkString
+  def process(inputBody: InputStream, output: OutputStream): Unit = {
+    val body = Source.fromInputStream(inputBody).getLines().mkString
     for {
       fileChecksParameters <- IO.fromEither(decode[FileChecksParameters](body))
       droidFileChecksResult <- IO.fromEither(extractDroidFileChecksResults(fileChecksParameters))
@@ -40,7 +40,7 @@ class Lambda {
         guardDutyScanResultExtractor.getMalwareScanResult(
           fileChecksParameters.s3SourceBucket.name,
           fileChecksParameters.s3SourceBucket.objectKey,
-          POLL_MALWARE_SCAN_COMPLETE_AWAIT_SECS
+          pollMalwareScanCompleteAwaitSecs
         )
       )
       _ <- copyToCleanDestinationOrQuarantineBucket(

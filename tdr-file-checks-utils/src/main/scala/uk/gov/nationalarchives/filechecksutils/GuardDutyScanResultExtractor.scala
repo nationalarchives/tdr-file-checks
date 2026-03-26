@@ -31,7 +31,7 @@ class GuardDutyScanResultExtractor(s3Utils: S3Utils) {
       logger.info(s"GuardDuty scan result: $THREATS_FOUND for s3://$bucketName/$objectKey")
       THREATS_FOUND
     } else {
-      logger.info(s"GuardDuty scan result: No threats found for s3://$bucketName/$objectKey")
+      logger.info(s"GuardDuty scan result: $NO_THREATS_FOUND for s3://$bucketName/$objectKey")
       NO_THREATS_FOUND
     }
 
