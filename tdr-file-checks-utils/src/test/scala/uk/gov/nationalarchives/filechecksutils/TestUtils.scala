@@ -74,6 +74,36 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
     )
   }
 
+  def stubS3ObjectTagging(urlStub: String, tagKey: String, tagValue: String): StubMapping = {
+    val response = s"""<GetObjectTaggingOutput xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <TagSet>
+        <Tag>
+          <Key>$tagKey</Key>
+          <Value>$tagValue</Value>
+        </Tag>
+        <Tag>
+          <Key>Test</Key>
+          <Value>Test</Value>
+        </Tag>
+      </TagSet>
+    </GetObjectTaggingOutput>
+    """
+    wiremockS3.stubFor(
+      get(urlEqualTo(urlStub))
+        .willReturn(okXml(response))
+    )
+  }
+
+  def stubS3PutObject(urlStub: String): StubMapping = {
+    wiremockS3.stubFor(
+      put(urlEqualTo(urlStub))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+        )
+    )
+  }
+
   def stubS3GetBytes(fileName: String, urlStub: String): Unit = {
     val filePath = s"./src/test/resources/testfiles/$fileName"
     val bytes = Files.readAllBytes(Paths.get(filePath))
