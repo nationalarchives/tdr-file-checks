@@ -27,18 +27,13 @@ class GuardDutyScanResultExtractor(s3Utils: S3Utils) {
 
   def getMalwareScanResult(bucketName: String, objectKey: String, pollMalwareScanCompleteAwaitSecs: Long = 5L): MalwareScanResult = {
     val scanResult = pollGuardDutyScanComplete(bucketName, objectKey, pollMalwareScanCompleteAwaitSecs)
-    val result = if (scanResult == THREATS_FOUND.toString) {
-      logger.info(s"GuardDuty scan result: $THREATS_FOUND for s3://$bucketName/$objectKey")
-      THREATS_FOUND
-    } else {
-      logger.info(s"GuardDuty scan result: $NO_THREATS_FOUND for s3://$bucketName/$objectKey")
-      NO_THREATS_FOUND
-    }
+
+    logger.info(s"GuardDuty scan result: $THREATS_FOUND for s3://$bucketName/$objectKey")
 
     MalwareScanResult(
       software = awsGuardDutyMalwareScan,
       softwareVersion = awsGuardDuty,
-      result = result,
+      result = MalwareScanStatus.fromString(scanResult),
       datetime = System.currentTimeMillis()
     )
   }
@@ -55,7 +50,22 @@ object GuardDutyScanResultExtractor {
     new GuardDutyScanResultExtractor(S3Utils(s3AsyncClient))
 }
 
-sealed trait MalwareScanStatus
-case object NO_THREATS_FOUND extends MalwareScanStatus
-case object THREATS_FOUND extends MalwareScanStatus
-case class MalwareScanResult(software: String, softwareVersion: String, result: MalwareScanStatus, datetime: Long)
+case class MalwareScanResult(software: String, softwareVersion: String, result: Option[MalwareScanStatus], datetime: Long)
+
+sealed abstract class MalwareScanStatus(val value: String)
+case object NO_THREATS_FOUND extends MalwareScanStatus("NO_THREATS_FOUND")
+case object THREATS_FOUND extends MalwareScanStatus("THREATS_FOUND")
+case object UNSUPPORTED extends MalwareScanStatus("UNSUPPORTED")
+case object ACCESS_DENIED extends MalwareScanStatus("ACCESS_DENIED")
+case object FAILED extends MalwareScanStatus("FAILED")
+
+object MalwareScanStatus {
+  def fromString(value: String): Option[MalwareScanStatus] = value match {
+    case "NO_THREATS_FOUND" => Some(NO_THREATS_FOUND)
+    case "THREATS_FOUND" => Some(THREATS_FOUND)
+    case "UNSUPPORTED" => Some(UNSUPPORTED)
+    case "ACCESS_DENIED" => Some(ACCESS_DENIED)
+    case "FAILED" => Some(FAILED)
+    case _ => None
+  }
+}

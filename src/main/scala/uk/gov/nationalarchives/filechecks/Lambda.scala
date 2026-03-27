@@ -67,7 +67,7 @@ class Lambda {
       software = malwareScanResult.software,
       softwareVersion = malwareScanResult.softwareVersion,
       databaseVersion = version,
-      result = malwareScanResult.result.toString,
+      result = malwareScanResult.result.map(_.value).getOrElse(""),
       datetime = malwareScanResult.datetime,
       fileId = fileChecksParameters.fileId
     )
@@ -83,8 +83,8 @@ class Lambda {
   ): IO[Any] = {
 
     val destinationBucket = malwareScanResult.result match {
-      case NO_THREATS_FOUND => cleanDestinationBucket
-      case _                => quarantineBucket
+      case Some(NO_THREATS_FOUND) => cleanDestinationBucket
+      case _                      => quarantineBucket
     }
     destinationBucket match {
       case Some(bucket) =>
