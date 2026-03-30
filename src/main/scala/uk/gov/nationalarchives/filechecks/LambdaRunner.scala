@@ -14,6 +14,10 @@ object LambdaRunner extends App {
     |  "s3SourceBucket": {
     |    "name": "tdr-source-bucket-intg",
     |    "objectKey": "898f06e7-1209-4f09-a33f-16d642b6c806/object-key.csv"
+    |  },
+    |  "s3QuarantineBucket": {
+    |    "name": "tdr-quarantine-test",
+    |    "objectKey": "898f06e7-1209-4f09-a33f-16d642b6c806/object-key.csv"
     |  }
     |}
     |""".stripMargin
