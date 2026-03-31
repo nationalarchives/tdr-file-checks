@@ -8,23 +8,6 @@ ThisBuild / javacOptions ++= Seq(
   "--release", "21"
 )
 
-val commonMergeStrategy: String => sbtassembly.MergeStrategy = {
-  case PathList("META-INF", "MANIFEST.MF")           => MergeStrategy.discard
-  case PathList("META-INF", "services", xs @ _*)     => MergeStrategy.concat
-  case PathList("META-INF", xs @ _*)                 => MergeStrategy.discard
-  case PathList(xs @ _*) if xs.last.endsWith(".nir") => MergeStrategy.discard
-  case "utf8.json"                                   => MergeStrategy.discard
-  case PathList("java", _ @_*)                       => MergeStrategy.discard
-  case PathList("javax", _ @_*)                      => MergeStrategy.discard
-  case PathList("scala", "scalanative", _ @_*)       => MergeStrategy.discard
-  case PathList("scala-native", _ @_*)               => MergeStrategy.discard
-  case PathList("assets", "swagger", "ui", _ @_*)    => MergeStrategy.discard
-  case PathList("wiremock", _ @_*)                   => MergeStrategy.discard
-  case "module-info.class"                           => MergeStrategy.discard
-  case "reference.conf"                              => MergeStrategy.concat
-  case x                                             => MergeStrategy.first
-}
-
 // Common assembly merge strategy
 ThisBuild / assembly / assemblyMergeStrategy := {
   case PathList("META-INF", "MANIFEST.MF")       => MergeStrategy.discard
@@ -46,7 +29,7 @@ ThisBuild / Test / envVars := Map(
 )
 
 lazy val tdrFileChecksUtils = (project in file("tdr-file-checks-utils"))
-  .enablePlugins(AssemblyPlugin)
+  .disablePlugins(AssemblyPlugin)
   .settings(
     name := "tdr-file-checks-utils",
     libraryDependencies ++= Seq(
@@ -58,6 +41,7 @@ lazy val tdrFileChecksUtils = (project in file("tdr-file-checks-utils"))
       droidApi,
       catsEffect,
       s3Utils,
+      awsGuardDuty,
       scalaTest % Test,
       mockito % Test,
       wiremock % Test
@@ -66,9 +50,8 @@ lazy val tdrFileChecksUtils = (project in file("tdr-file-checks-utils"))
   )
 
 lazy val root = (project in file("."))
-  .disablePlugins(AssemblyPlugin)
+  .enablePlugins(AssemblyPlugin)
   .dependsOn(tdrFileChecksUtils % "test->test;compile->compile")
-  .aggregate(tdrFileChecksUtils)
   .settings(
     name := "tdr-file-checks",
     libraryDependencies ++= Seq(
@@ -85,5 +68,5 @@ lazy val root = (project in file("."))
       wiremock % Test
     ),
     assembly / skip := false,
-    assembly / assemblyJarName := "tdr-file-checks.jar",
+    assembly / assemblyJarName := "file-checks.jar"
   )
