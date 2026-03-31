@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-permissions:
-  id-token: write
-  contents: write
 jobs:
   pre-deploy:
     uses: nationalarchives/tdr-github-actions/.github/workflows/lambda_build.yml@b6c9c07143225e2473579be26914683efd719ef6 # v0.0.23
