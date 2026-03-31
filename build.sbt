@@ -68,5 +68,5 @@ lazy val root = (project in file("."))
       wiremock % Test
     ),
     assembly / skip := false,
-    assembly / assemblyJarName := "tdr-file-checks.jar"
+    assembly / assemblyJarName := "file-checks.jar"
   )
