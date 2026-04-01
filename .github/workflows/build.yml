@@ -3,11 +3,10 @@ on:
   push:
     branches:
       - main
-
 permissions: {}
-
 jobs:
   extract-config:
+    permissions: { contents: write, id-token: write }
     runs-on: ubuntu-latest
     outputs:
       droid-version: ${{ env.DROID_VERSION }}
@@ -30,6 +29,7 @@ jobs:
           echo "CONTAINERS_VERSION=$CONTAINERS_VERSION" >> $GITHUB_ENV
           echo "CONTAINERS_DOWNLOAD_NAME=$CONTAINERS_DOWNLOAD_NAME" >> $GITHUB_ENV
   pre-deploy:
+    permissions: { contents: write, id-token: write }
     needs: extract-config
     uses: nationalarchives/tdr-github-actions/.github/workflows/lambda_build.yml@b6ba669dcee7fd4ac089c2e9fb234c48ddd93ab5 # v0.0.15
     with:
@@ -45,6 +45,7 @@ jobs:
       MANAGEMENT_ACCOUNT: ${{ secrets.MANAGEMENT_ACCOUNT }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
   deploy:
+    permissions: { contents: write, id-token: write }
     needs: pre-deploy
     runs-on: ubuntu-latest
     steps:
