@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+
+permissions: {}
+
 jobs:
   extract-config:
     runs-on: ubuntu-latest
@@ -13,6 +16,8 @@ jobs:
       containers-download-name: ${{ env.CONTAINERS_DOWNLOAD_NAME }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Extract configuration values
         run: |
           DROID_VERSION=$(grep 'droid.version' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
