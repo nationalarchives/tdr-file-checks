@@ -1,13 +1,13 @@
 name: TDR Tag and pre deploy
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
 
-permissions: {}
-
 jobs:
   extract-config:
+    permissions: { contents: write, id-token: write }
     runs-on: ubuntu-latest
     outputs:
       droid-version: ${{ env.DROID_VERSION }}
