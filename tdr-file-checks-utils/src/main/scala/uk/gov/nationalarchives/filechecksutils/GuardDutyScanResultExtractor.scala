@@ -62,10 +62,10 @@ case object FAILED extends MalwareScanStatus("FAILED")
 object MalwareScanStatus {
   def fromString(value: String): Option[MalwareScanStatus] = value match {
     case "NO_THREATS_FOUND" => Some(NO_THREATS_FOUND)
-    case "THREATS_FOUND" => Some(THREATS_FOUND)
-    case "UNSUPPORTED" => Some(UNSUPPORTED)
-    case "ACCESS_DENIED" => Some(ACCESS_DENIED)
-    case "FAILED" => Some(FAILED)
-    case _ => None
+    case "THREATS_FOUND"    => Some(THREATS_FOUND)
+    case "UNSUPPORTED"      => Some(UNSUPPORTED)
+    case "ACCESS_DENIED"    => Some(ACCESS_DENIED)
+    case "FAILED"           => Some(FAILED)
+    case _                  => None
   }
 }
