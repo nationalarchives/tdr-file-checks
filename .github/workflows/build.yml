@@ -1,38 +1,51 @@
 name: TDR Tag and pre deploy
 on:
-  workflow_dispatch:
   push:
     branches:
-      - master
-permissions:
-  id-token: write
-  contents: write
+      - main
+permissions: {}
 jobs:
+  extract-config:
+    permissions: { contents: write, id-token: write }
+    runs-on: ubuntu-latest
+    outputs:
+      droid-version: ${{ env.DROID_VERSION }}
+      droid-download-name: ${{ env.DROID_DOWNLOAD_NAME }}
+      containers-version: ${{ env.CONTAINERS_VERSION }}
+      containers-download-name: ${{ env.CONTAINERS_DOWNLOAD_NAME }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Extract configuration values
+        run: |
+          DROID_VERSION=$(grep 'droid.version' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+          DROID_DOWNLOAD_NAME=$(grep 'droid.signature.name' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+          CONTAINERS_VERSION=$(grep 'containers.version' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+          CONTAINERS_DOWNLOAD_NAME=$(grep 'containers.signature.name' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+          
+          echo "DROID_VERSION=$DROID_VERSION" >> $GITHUB_ENV
+          echo "DROID_DOWNLOAD_NAME=$DROID_DOWNLOAD_NAME" >> $GITHUB_ENV
+          echo "CONTAINERS_VERSION=$CONTAINERS_VERSION" >> $GITHUB_ENV
+          echo "CONTAINERS_DOWNLOAD_NAME=$CONTAINERS_DOWNLOAD_NAME" >> $GITHUB_ENV
   pre-deploy:
-    uses: nationalarchives/tdr-github-actions/.github/workflows/lambda_build.yml@c0b42964f83e17530bde64ce2c987a4c355f7fe7 # v0.0.19
+    permissions: { contents: write, id-token: write }
+    needs: extract-config
+    uses: nationalarchives/tdr-github-actions/.github/workflows/lambda_build.yml@27efbc03aaaa9696eea85ab7a9363d6f92733471 # v0.0.34
     with:
       lambda-name: file-checks
       repo-name: tdr-file-checks
       artifact-name: file-checks
       java-version: '21'
       build-command: |
-        DROID_VERSION=$(grep 'droid.version' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-        DROID_DOWNLOAD_NAME=$(grep 'droid.signature.name' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-        CONTAINERS_VERSION=$(grep 'containers.version' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-        CONTAINERS_DOWNLOAD_NAME=$(grep 'containers.signature.name' src/main/resources/application.conf | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-
-        echo "DROID_VERSION_ENV=$DROID_VERSION" >> $GITHUB_ENV
-        echo "DROID_DOWNLOAD_NAME_ENV=$DROID_DOWNLOAD_NAME" >> $GITHUB_ENV
-        echo "CONTAINERS_VERSION_ENV=$CONTAINERS_VERSION" >> $GITHUB_ENV
-        echo "CONTAINERS_DOWNLOAD_NAME_ENV=$CONTAINERS_DOWNLOAD_NAME" >> $GITHUB_ENV
-
-        curl -L "https://cdn.nationalarchives.gov.uk/documents/${DROID_DOWNLOAD_NAME_ENV}${DROID_VERSION_ENV}.xml" -o "src/main/resources/${DROID_DOWNLOAD_NAME_ENV}${DROID_VERSION_ENV}.xml"
-        curl -L "https://cdn.nationalarchives.gov.uk/documents/${CONTAINERS_DOWNLOAD_NAME_ENV}${CONTAINERS_VERSION_ENV}.xml" -o "src/main/resources/${CONTAINERS_DOWNLOAD_NAME_ENV}${CONTAINERS_VERSION_ENV}.xml"
+        curl -L "https://cdn.nationalarchives.gov.uk/documents/${{ needs.extract-config.outputs.droid-download-name }}${{ needs.extract-config.outputs.droid-version }}.xml" -o "src/main/resources/${{ needs.extract-config.outputs.droid-download-name }}${{ needs.extract-config.outputs.droid-version }}.xml"
+        curl -L "https://cdn.nationalarchives.gov.uk/documents/${{ needs.extract-config.outputs.containers-download-name }}${{ needs.extract-config.outputs.containers-version }}.xml" -o "src/main/resources/${{ needs.extract-config.outputs.containers-download-name }}${{ needs.extract-config.outputs.containers-version }}.xml"
         sbt assembly
     secrets:
       MANAGEMENT_ACCOUNT: ${{ secrets.MANAGEMENT_ACCOUNT }}
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
   deploy:
+    permissions: { contents: write, id-token: write }
     needs: pre-deploy
     runs-on: ubuntu-latest
     steps:
