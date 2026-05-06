@@ -164,6 +164,6 @@ class LambdaSpec extends TestUtils {
     maybeResult.isDefined should be(true)
     maybeResult.get.checksum.sha256Checksum should equal(expectedChecksum)
     maybeResult.get.checksum.fileId should equal(fileId)
-    maybeResult.get.ffidMetadataInputValues.fileId should equal(fileId)
+    maybeResult.get.fileFormat.fileId should equal(fileId)
   }
 }
