@@ -28,7 +28,7 @@ class GuardDutyScanResultExtractor(s3Utils: S3Utils) {
   def getMalwareScanResult(bucketName: String, objectKey: String, pollMalwareScanCompleteAwaitSecs: Long = 5L): MalwareScanResult = {
     val scanResult = pollGuardDutyScanComplete(bucketName, objectKey, pollMalwareScanCompleteAwaitSecs)
 
-    logger.info(s"GuardDuty scan result: $THREATS_FOUND for s3://$bucketName/$objectKey")
+    logger.info(s"GuardDuty scan result: $scanResult for s3://$bucketName/$objectKey")
 
     MalwareScanResult(
       software = awsGuardDutyMalwareScan,
