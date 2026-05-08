@@ -5,7 +5,8 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "uk.gov.nationalarchives"
 
 ThisBuild / javacOptions ++= Seq(
-  "--release", "21"
+  "--release",
+  "21"
 )
 
 // Common assembly merge strategy
