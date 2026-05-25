@@ -3,8 +3,6 @@
   "consignmentId": "f0a73877-6057-4bbb-a1eb-7c7b73cab586",
   "fileId": "acea5919-25a3-4c6b-8908-fa47cc77878f",
   "originalPath": "no_file",
-  "s3SourceBucket": {
-    "name": "testbucket",
-    "objectKey": "Test.docx"
-  }
+  "s3SourceBucket": "testbucket",
+  "s3SourceBucketKey": "Test.docx"
 }

@@ -38,18 +38,12 @@ class Lambda {
       droidFileChecksResult <- IO.fromEither(extractDroidFileChecksResults(fileChecksParameters))
       malwareScanResult <- IO(
         guardDutyScanResultExtractor.getMalwareScanResult(
-          fileChecksParameters.s3SourceBucket.name,
-          fileChecksParameters.s3SourceBucket.objectKey,
+          fileChecksParameters.s3SourceBucket,
+          fileChecksParameters.s3SourceBucketKey,
           pollMalwareScanCompleteAwaitSecs
         )
       )
-      _ <- copyToCleanDestinationOrQuarantineBucket(
-        fileChecksParameters.fileId,
-        malwareScanResult,
-        fileChecksParameters.s3SourceBucket,
-        fileChecksParameters.s3CleanDestinationBucket,
-        fileChecksParameters.s3QuarantineBucket
-      )
+      _ <- copyToCleanDestinationOrQuarantineBucket(fileChecksParameters, malwareScanResult)
       result: FileChecksResult = buildFileChecksResult(fileChecksParameters, droidFileChecksResult, malwareScanResult)
       output <- Resource
         .fromAutoCloseable(IO(output))
@@ -75,24 +69,21 @@ class Lambda {
   }
 
   private def copyToCleanDestinationOrQuarantineBucket(
-      fileId: UUID,
-      malwareScanResult: MalwareScanResult,
-      sourceBucket: S3Bucket,
-      cleanDestinationBucket: Option[S3Bucket],
-      quarantineBucket: Option[S3Bucket]
+      fileChecksParameters: FileChecksParameters,
+      malwareScanResult: MalwareScanResult
   ): IO[Any] = {
 
-    val destinationBucket = malwareScanResult.result match {
-      case Some(NO_THREATS_FOUND) => cleanDestinationBucket
-      case _                      => quarantineBucket
+    val (destinationBucket, destinationBucketKey) = malwareScanResult.result match {
+      case Some(NO_THREATS_FOUND) => (fileChecksParameters.s3CleanDestinationBucket, fileChecksParameters.s3CleanDestinationBucketKey)
+      case _                      => (fileChecksParameters.s3QuarantineBucket, fileChecksParameters.s3QuarantineBucketKey)
     }
-    destinationBucket match {
-      case Some(bucket) =>
-        logger.info("Copying file {} to {} bucket: s3://{}/{}", fileId, bucket.name, bucket.name, bucket.objectKey)
+    (destinationBucket, destinationBucketKey) match {
+      case (Some(bucket), Some(key)) =>
+        logger.info("Copying file {} to {} bucket: s3://{}/{}", fileChecksParameters.fileId, bucket, bucket, key)
         s3Utils
-          .copyObject(sourceBucket.name, sourceBucket.objectKey, bucket.name, bucket.objectKey)
-          .map(_ => logger.info("File {} copied to {} bucket: s3://{}/{}", fileId, bucket.name, bucket.name, bucket.objectKey))
-      case None => IO.unit
+          .copyObject(fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey, bucket, key)
+          .map(_ => logger.info("File {} copied to {} bucket: s3://{}/{}", fileChecksParameters.fileId, bucket, bucket, key))
+      case _ => IO.unit
     }
   }
 
@@ -101,24 +92,25 @@ class Lambda {
       fileChecksParameters.consignmentId,
       fileChecksParameters.fileId,
       fileChecksParameters.originalPath,
-      fileChecksParameters.s3SourceBucket.name,
-      fileChecksParameters.s3SourceBucket.objectKey
+      fileChecksParameters.s3SourceBucket,
+      fileChecksParameters.s3SourceBucketKey
     )
   } yield metadata
 }
-
-case class S3Bucket(name: String, objectKey: String)
 
 case class FileChecksParameters(
     consignmentId: UUID,
     fileId: UUID,
     originalPath: String,
     userId: UUID,
-    s3SourceBucket: S3Bucket,
-    s3CleanDestinationBucket: Option[S3Bucket],
-    s3QuarantineBucket: Option[S3Bucket]
+    s3SourceBucket: String,
+    s3SourceBucketKey: String,
+    s3QuarantineBucket: Option[String],
+    s3QuarantineBucketKey: Option[String],
+    s3CleanDestinationBucket: Option[String],
+    s3CleanDestinationBucketKey: Option[String]
 )
 
 case class Checksum(fileId: UUID, sha256Checksum: String)
 case class Antivirus(software: String, softwareVersion: String, databaseVersion: String, result: String, datetime: Long, fileId: UUID)
-case class FileChecksResult(checksum: Checksum, ffidMetadataInputValues: FFIDMetadataInputValues, antivirus: Antivirus)
+case class FileChecksResult(checksum: Checksum, fileFormat: FFIDMetadataInputValues, antivirus: Antivirus)
