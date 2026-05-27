@@ -10,7 +10,6 @@ integrity, and security before being processed further:
 4. **Checksum Calculation** - Generates SHA256 checksums for file integrity verification and audit trails
 5. **File Routing** - Routes scanned files to appropriate destinations (clean or quarantine buckets) based on scan results and threat status
 
-
 ## Usage
 
 ### Lambda Function Input
@@ -24,11 +23,11 @@ The Lambda function expects a JSON payload with the following structure:
   "originalPath": "/path/to/file",
   "userId": "uuid",
   "s3SourceBucket": "source-bucket",
-  "s3SourceBucketKey": "path/to/file",
+  "s3SourceBucketKey": "s3/object/key",
   "s3QuarantineBucket": "quarantine-bucket",
-  "s3QuarantineBucketKey": "quarantine/path",
+  "s3QuarantineBucketKey": "s3/quarantine/object/key",
   "s3CleanDestinationBucket": "clean-bucket",
-  "s3CleanDestinationBucketKey": "clean/path"
+  "s3CleanDestinationBucketKey": "s3/clean/object/key"
 }
 ```
 
@@ -98,11 +97,11 @@ When running locally, you'll need to ensure:
    Download the signature files from the National Archives CDN and save them to `src/main/resources/`. Use the version numbers from the configuration:
 
    ```bash
-   # Download DROID Signature File V122 (check application.conf for current version)
-   curl -L "https://cdn.nationalarchives.gov.uk/documents/DROID_SignatureFile_V122.xml" -o "src/main/resources/DROID_SignatureFile_V122.xml"
+   # Download DROID Signature File V{latest version} (check application.conf for current version)
+   curl -L "https://cdn.nationalarchives.gov.uk/documents/DROID_SignatureFile_V{latest version}.xml" -o "src/main/resources/DROID_SignatureFile_V{latest version}.xml"
 
    # Download Container Signature File (check application.conf for current version)
-   curl -L "https://cdn.nationalarchives.gov.uk/documents/container-signature-20260119.xml" -o "src/main/resources/container-signature-20260119.xml"
+   curl -L "https://cdn.nationalarchives.gov.uk/documents/container-signature-{latest version}.xml" -o "src/main/resources/container-signature-{latest version}.xml"
    ```
    
    **Note:** Update the version numbers in the curl commands and filenames to match the versions specified in `application.conf`.
