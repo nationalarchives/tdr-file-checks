@@ -2,7 +2,7 @@ import sbt.*
 
 object Dependencies {
 
-  private val circeVersion = "0.14.15"
+  private val circeVersion = "0.14.16"
 
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.20"
   lazy val generatedGraphql = "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.477"
@@ -12,7 +12,7 @@ object Dependencies {
   lazy val circeGeneric = "io.circe" %% "circe-generic" % circeVersion
   lazy val circeParser = "io.circe" %% "circe-parser" % circeVersion
   lazy val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.9.6"
-  lazy val logback = "ch.qos.logback" % "logback-classic" % "1.5.34"
+  lazy val logback = "ch.qos.logback" % "logback-classic" % "1.5.35"
   lazy val logstashLogbackEncoder = "net.logstash.logback" % "logstash-logback-encoder" % "9.0"
   lazy val mockito = "org.mockito" %% "mockito-scala" % "2.1.0"
   lazy val wiremock = "com.github.tomakehurst" % "wiremock" % "3.0.1"
