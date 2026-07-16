@@ -16,7 +16,7 @@ object Dependencies {
   lazy val logstashLogbackEncoder = "net.logstash.logback" % "logstash-logback-encoder" % "9.0"
   lazy val mockito = "org.mockito" %% "mockito-scala" % "2.1.0"
   lazy val wiremock = "com.github.tomakehurst" % "wiremock" % "3.0.1"
-  lazy val droidApi = "uk.gov.nationalarchives" % "droid-api" % "6.9.12"
+  lazy val droidApi = "uk.gov.nationalarchives" % "droid-api" % "6.9.13"
   lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.1"
   lazy val awsGuardDuty = "software.amazon.awssdk" % "guardduty" % "2.20.121"
 }
