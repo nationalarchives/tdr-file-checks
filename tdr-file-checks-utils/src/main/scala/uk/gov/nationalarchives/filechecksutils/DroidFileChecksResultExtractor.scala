@@ -16,8 +16,9 @@ import scala.util.Try
 
 class DroidFileChecksResultExtractor(api: DroidAPI) {
 
-  private def fileExtension(filePath: String): String = {
-    Paths.get(filePath).getFileName.toString.split("\\.").last
+  private def fileExtension(filePath: String): Option[String] = {
+    val name = Paths.get(filePath).getFileName.toString
+    if (name.contains(".")) { Some(name.split("\\.").last) } else { None }
   }
 
   def fileChecksResult(consignmentId: UUID, fileId: UUID, originalPath: String, s3Bucket: String, s3ObjectKey: String): Either[Throwable, DroidFileChecksResult] = {
@@ -26,7 +27,10 @@ class DroidFileChecksResultExtractor(api: DroidAPI) {
       val droidVersion = api.getDroidVersion
       val containerSignatureVersion = api.getContainerSignatureVersion
       val droidSignatureVersion = api.getBinarySignatureVersion
-      val results: List[APIResult] = api.submit(URI.create(s"s3://$s3Bucket/$s3ObjectKey"), extension).asScala.toList
+      val results: List[APIResult] = extension match {
+        case Some(value) => api.submit(URI.create(s"s3://$s3Bucket/$s3ObjectKey"), value).asScala.toList
+        case _           => api.submit(URI.create(s"s3://$s3Bucket/$s3ObjectKey")).asScala.toList
+      }
 
       val matches = results.flatMap(_.identificationResults().asScala) match {
         case Nil     => List(FFIDMetadataInputMatches(None, "", None, None, None))
