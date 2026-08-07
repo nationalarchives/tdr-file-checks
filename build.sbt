@@ -9,12 +9,6 @@ ThisBuild / javacOptions ++= Seq(
   "21"
 )
 
-dependencyOverrides ++= Seq(
-  bcprov,
-  bcpkix,
-  bcutil
-)
-
 // Common assembly merge strategy
 ThisBuild / assembly / assemblyMergeStrategy := {
   case PathList("META-INF", "MANIFEST.MF")       => MergeStrategy.discard
@@ -53,7 +47,12 @@ lazy val tdrFileChecksUtils = (project in file("tdr-file-checks-utils"))
       mockito % Test,
       wiremock % Test
     ),
-    assembly / skip := true
+    assembly / skip := true,
+    dependencyOverrides ++= Seq(
+      bcprov,
+      bcpkix,
+      bcutil
+    )
   )
 
 lazy val root = (project in file("."))
@@ -75,5 +74,10 @@ lazy val root = (project in file("."))
       wiremock % Test
     ),
     assembly / skip := false,
-    assembly / assemblyJarName := "file-checks.jar"
+    assembly / assemblyJarName := "file-checks.jar",
+    dependencyOverrides ++= Seq(
+      bcprov,
+      bcpkix,
+      bcutil
+    )
   )
