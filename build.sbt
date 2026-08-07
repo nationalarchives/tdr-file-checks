@@ -9,6 +9,12 @@ ThisBuild / javacOptions ++= Seq(
   "21"
 )
 
+dependencyOverrides ++= Seq(
+  bcprov,
+  bcpkix,
+  bcutil
+)
+
 // Common assembly merge strategy
 ThisBuild / assembly / assemblyMergeStrategy := {
   case PathList("META-INF", "MANIFEST.MF")       => MergeStrategy.discard

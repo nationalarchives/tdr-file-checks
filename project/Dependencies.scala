@@ -3,6 +3,7 @@ import sbt.*
 object Dependencies {
 
   private val circeVersion = "0.14.16"
+  private lazy val bouncyCastleVersion = "1.85"
 
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.20"
   lazy val generatedGraphql = "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.480"
@@ -19,4 +20,7 @@ object Dependencies {
   lazy val droidApi = "uk.gov.nationalarchives" % "droid-api" % "6.9.13"
   lazy val catsEffect = "org.typelevel" %% "cats-effect" % "3.6.1"
   lazy val awsGuardDuty = "software.amazon.awssdk" % "guardduty" % "2.20.121"
+  lazy val bcprov = "org.bouncycastle" % "bcprov-jdk18on" % bouncyCastleVersion
+  lazy val bcpkix = "org.bouncycastle" % "bcpkix-jdk18on" % bouncyCastleVersion
+  lazy val bcutil = "org.bouncycastle" % "bcutil-jdk18on" % bouncyCastleVersion
 }
