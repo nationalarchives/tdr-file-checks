@@ -68,6 +68,18 @@ class DroidFileChecksResultExtractorSpec extends TestUtils with MockitoSugar wit
     m.fileExtensionMismatch should be(Some(true))
   }
 
+  "The fileChecksResult method" should "call API without file extension if given file has no extension" in {
+    val mockApi = mock[DroidAPI]
+    val apiIdentification = new APIIdentificationResult(null, IdentificationMethod.EXTENSION, null, "testName", true, mockUri)
+    val mockResult = new APIResult(List(apiIdentification).asJava, emptyChecksumMap)
+    when(mockApi.submit(URI.create("s3://testbucket/bucketKey"))).thenReturn(List(mockResult).asJava)
+
+    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(consignmentId, fileId, "originalPath", "testbucket", "bucketKey")
+    val ffid = result.value.ffidMetadataInputValues
+    val m = ffid.matches.head
+    m.fileExtensionMismatch should be(Some(true))
+  }
+
   "The fileChecksResult method" should "return a file format name if one exists" in {
     val mockApi = mock[DroidAPI]
     val apiIdentification = new APIIdentificationResult(null, IdentificationMethod.EXTENSION, null, ".formatName", true, mockUri)
