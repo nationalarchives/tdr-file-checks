@@ -35,6 +35,14 @@ class ChecksumCalculatorSpec extends AnyFlatSpec {
     }
   }
 
+  "calculateChecksum" should "return the same checksum whatever the buffer size" in {
+    val file = testFile("more_than_one_meg")
+    val expected = "c08c59a10f61526ae02808f761d2fd75c09cb2d77d608dc01fdbc35e3fdaf11d"
+    List(1, 7, 8192, 1024 * 1024, 64 * 1024 * 1024).foreach { bufferSizeBytes =>
+      ChecksumCalculator.calculateChecksum(file, bufferSizeBytes).unsafeRunSync() should equal(expected)
+    }
+  }
+
   "calculateChecksum" should "fail if the file does not exist" in {
     val exception = intercept[java.nio.file.NoSuchFileException] {
       ChecksumCalculator.calculateChecksum(testFile("does_not_exist")).unsafeRunSync()

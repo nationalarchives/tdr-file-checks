@@ -11,6 +11,8 @@ object ApplicationConfig {
   val pollMalwareScanCompleteAwaitSecs: Long = configFactory.getLong("poll_malware_scan_complete.await.secs")
   val version: String = sys.env.getOrElse("AWS_LAMBDA_FUNCTION_VERSION", "$LATEST")
   val s3Endpoint: String = configFactory.getString("s3.endpoint")
+  val multipartPartSizeBytes: Long = configFactory.getLong("s3.multipart.part.size.bytes")
   val s3FilesMountPoint: String = configFactory.getString("s3files.mount.point")
   val largeFileThresholdBytes: Long = configFactory.getLong("s3files.large.file.threshold.bytes")
+  val checksumBufferSizeBytes: Int = configFactory.getInt("checksum.buffer.size.bytes")
 }
