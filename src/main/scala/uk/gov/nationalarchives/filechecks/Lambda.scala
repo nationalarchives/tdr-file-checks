@@ -29,6 +29,7 @@ class Lambda {
 
   private lazy val s3Client: S3AsyncClient = S3ClientProvider.s3AsyncClient
   private lazy val s3Utils: S3Utils = S3Utils(s3Client)
+  private lazy val s3CopyUtils: S3Utils = S3Utils(S3ClientProvider.s3CopyAsyncClient)
   private val droidFileChecksResultExtractor: DroidFileChecksResultExtractor = DroidFileChecksResultExtractor(containerSignature, droidSignature)
   private lazy val guardDutyScanResultExtractor: GuardDutyScanResultExtractor = GuardDutyScanResultExtractor(s3Client)
 
@@ -151,7 +152,7 @@ class Lambda {
     (destinationBucket, destinationBucketKey) match {
       case (Some(bucket), Some(key)) =>
         logger.info("Copying file {} to {} bucket: s3://{}/{}", fileChecksParameters.fileId, bucket, bucket, key)
-        s3Utils
+        s3CopyUtils
           .copyObject(fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey, bucket, key)
           .map(_ => logger.info("File {} copied to {} bucket: s3://{}/{}", fileChecksParameters.fileId, bucket, bucket, key))
       case _ => IO.unit
