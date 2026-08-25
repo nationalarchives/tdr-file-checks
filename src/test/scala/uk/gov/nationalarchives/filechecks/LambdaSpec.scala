@@ -13,8 +13,6 @@ import scala.io.Source.fromResource
 class LambdaSpec extends TestUtils {
 
   val fileId: UUID = UUID.fromString("acea5919-25a3-4c6b-8908-fa47cc77878f")
-  val consignmentId: UUID = UUID.fromString("f0a73877-6057-4bbb-a1eb-7c7b73cab586")
-  val userId: UUID = UUID.fromString("bd4cbe2e-b752-4432-8aec-a3234b9d4339")
 
   private val noThreatsFound = "NO_THREATS_FOUND"
   private val threatsFound = "THREATS_FOUND"
@@ -25,11 +23,10 @@ class LambdaSpec extends TestUtils {
 
   "The process method" should "return the correct file checks results for given parameters" in {
     val outputStream = new ByteArrayOutputStream()
-    val expectedChecksum = "feb8c01fd4fd0d6e56d9a630ef82b244df25f141ac2d611115cda74fa0a2a2a7"
+    val expectedChecksum = "252c2811bd57fc3bcc7683bd6d9515aeeab0758bf1c3e71718851c7831ca848e"
     val fileName = "Test.docx"
-    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
-    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
-    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
@@ -41,9 +38,8 @@ class LambdaSpec extends TestUtils {
     val outputStream = new ByteArrayOutputStream()
     val expectedChecksum = "be776ad8d02e9fa4c35484877b2d96753a847e8bfc59c917c2442f3746850fb5"
     val fileName = "ten_bytes"
-    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
-    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
-    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
@@ -53,11 +49,10 @@ class LambdaSpec extends TestUtils {
 
   "The process method" should "calculate the correct checksum for a file with two chunks" in {
     val outputStream = new ByteArrayOutputStream()
-    val expectedChecksum = "2d18255f3cae74523d18e372433aa78caca19001d400add39f46fafb1c60daf2"
+    val expectedChecksum = "c08c59a10f61526ae02808f761d2fd75c09cb2d77d608dc01fdbc35e3fdaf11d"
     val fileName = "more_than_one_meg"
-    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
-    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
-    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event_large_file"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
@@ -65,20 +60,18 @@ class LambdaSpec extends TestUtils {
     validateFileChecksResult(expectedChecksum, decoded)
   }
 
-  "The process method" should "return an error when it throws a runtime exception" in {
+  "The process method" should "return an error when the file does not exist" in {
     val outputStream = new ByteArrayOutputStream()
-    val exception = intercept[RuntimeException] {
-      new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
-    }
-    exception.getMessage should equal("Error processing file id acea5919-25a3-4c6b-8908-fa47cc77878f with original path ten_bytes")
+    new Lambda().process(createEvent("file_event_missing_file"), outputStream)
+    val result = outputStream.toByteArray.map(_.toChar).mkString
+    result should include("error")
   }
 
   "The process method" should "populate antivirus field with NO_THREATS_FOUND result" in {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "Test.docx"
-    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
-    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
-    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
@@ -90,9 +83,8 @@ class LambdaSpec extends TestUtils {
   "The process method" should "not copy to quarantine bucket when s3QuarantineBucket is missing in the input for THREATS_FOUND result" in {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "Test.docx"
-    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
-    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
-    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", threatsFound)
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", threatsFound)
 
     new Lambda().process(createEvent("file_event"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
@@ -104,9 +96,8 @@ class LambdaSpec extends TestUtils {
   "The process method" should "not copy to clean bucket when s3CleanDestinationBucket is missing in the input for NO_THREATS_FOUND result" in {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "Test.docx"
-    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
-    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
-    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
@@ -119,11 +110,8 @@ class LambdaSpec extends TestUtils {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "Test.docx"
     val destinationBucket = "quarantineBucket"
-    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
-    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
-    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", threatsFound)
-    // Copy to quarantine bucket
-    stubS3HeadObject(fileName, s"/$fileName")
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", threatsFound)
     stubS3PutObject(s"/$destinationBucket/$fileName")
 
     new Lambda().process(createEvent("file_event_with_quarantine_bucket"), outputStream)
@@ -137,11 +125,8 @@ class LambdaSpec extends TestUtils {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "Test.docx"
     val cleanDestinationBucket = "cleanBucket"
-    stubS3GetBytes(fileName, s"/$userId/$consignmentId/$fileId")
-    stubS3GetObjectList(userId, consignmentId, List(fileId), fileName)
-    stubS3ObjectTagging(s"/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
-    // Copy to clean bucket
-    stubS3HeadObject(fileName, s"/$fileName")
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
     stubS3PutObject(s"/$cleanDestinationBucket/$fileName")
 
     new Lambda().process(createEvent("file_event_with_clean_bucket"), outputStream)
