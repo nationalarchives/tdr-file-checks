@@ -77,14 +77,18 @@ class Lambda {
     for {
       parallelResults <- IO.both(
         runDroidAndChecksumInParallel(fileChecksParameters, filePath),
-        IO.blocking(
-          guardDutyScanResultExtractor.getMalwareScanResult(
-            fileChecksParameters.s3SourceBucket,
-            fileChecksParameters.s3SourceBucketKey,
-            pollMalwareScanCompleteAwaitSecs
+        timed(s"Malware scan poll for ${fileChecksParameters.fileId}")(
+          IO.blocking(
+            guardDutyScanResultExtractor.getMalwareScanResult(
+              fileChecksParameters.s3SourceBucket,
+              fileChecksParameters.s3SourceBucketKey,
+              pollMalwareScanCompleteAwaitSecs
+            )
           )
         ).flatMap { malwareScanResult =>
-          copyToCleanDestinationOrQuarantineBucket(fileChecksParameters, malwareScanResult).as(malwareScanResult)
+          timed(s"Copy of ${fileChecksParameters.fileId} to destination bucket")(
+            copyToCleanDestinationOrQuarantineBucket(fileChecksParameters, malwareScanResult)
+          ).as(malwareScanResult)
         }
       )
       ((droidResult, checksumResult), malwareScanResult) = parallelResults
@@ -94,17 +98,27 @@ class Lambda {
   private def runDroidAndChecksumInParallel(fileChecksParameters: FileChecksParameters, filePath: Path): IO[(DroidFileChecksResult, String)] =
     for {
       result <- IO.both(
-        IO.blocking {
-          droidFileChecksResultExtractor.fileChecksResult(
-            fileChecksParameters.fileId,
-            fileChecksParameters.originalPath,
-            filePath.toUri
-          )
-        }.flatMap(IO.fromEither),
-        ChecksumCalculator.calculateChecksum(filePath)
+        timed(s"DROID identification of ${fileChecksParameters.fileId}")(
+          IO.blocking {
+            droidFileChecksResultExtractor.fileChecksResult(
+              fileChecksParameters.fileId,
+              fileChecksParameters.originalPath,
+              filePath.toUri
+            )
+          }.flatMap(IO.fromEither)
+        ),
+        timed(s"Checksum of ${fileChecksParameters.fileId}")(ChecksumCalculator.calculateChecksum(filePath))
       )
       (droidResult, checksumResult) = result
     } yield (droidResult, checksumResult)
+
+  private def timed[A](description: String)(io: IO[A]): IO[A] =
+    for {
+      start <- IO.monotonic
+      result <- io
+      end <- IO.monotonic
+      _ <- IO(logger.info("{} took {}ms", description, (end - start).toMillis))
+    } yield result
 
   private def buildFileChecksResult(
       fileChecksParameters: FileChecksParameters,

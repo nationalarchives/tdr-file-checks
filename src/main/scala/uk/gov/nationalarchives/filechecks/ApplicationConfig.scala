@@ -13,4 +13,5 @@ object ApplicationConfig {
   val s3Endpoint: String = configFactory.getString("s3.endpoint")
   val s3FilesMountPoint: String = configFactory.getString("s3files.mount.point")
   val largeFileThresholdBytes: Long = configFactory.getLong("s3files.large.file.threshold.bytes")
+  val checksumBufferSizeBytes: Int = configFactory.getInt("checksum.buffer.size.bytes")
 }
