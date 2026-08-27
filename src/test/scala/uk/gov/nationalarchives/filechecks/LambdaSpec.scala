@@ -75,11 +75,10 @@ class LambdaSpec extends TestUtils {
     validateFileChecksResult(expectedChecksum, decoded)
   }
 
-  "The process method" should "return an error when the file does not exist" in {
+  "The process method" should "throw when the file does not exist" in {
     val outputStream = new ByteArrayOutputStream()
-    new Lambda().process(createEvent("file_event_missing_file"), outputStream)
-    val result = outputStream.toByteArray.map(_.toChar).mkString
-    result should include("error")
+    a[Throwable] should be thrownBy new Lambda().process(createEvent("file_event_missing_file"), outputStream)
+    outputStream.toByteArray shouldBe empty
   }
 
   "The process method" should "populate antivirus field with NO_THREATS_FOUND result" in {
