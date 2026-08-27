@@ -39,6 +39,21 @@ class LambdaSpec extends TestUtils {
     val expectedChecksum = "be776ad8d02e9fa4c35484877b2d96753a847e8bfc59c917c2442f3746850fb5"
     val fileName = "ten_bytes"
     stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3GetObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+
+    new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
+    val result = outputStream.toByteArray.map(_.toChar).mkString
+    val decoded = decode[FileChecksResult](result).toOption
+    validateFileChecksResult(expectedChecksum, decoded)
+  }
+
+  "The process method" should "recover when the first download attempt fails" in {
+    val outputStream = new ByteArrayOutputStream()
+    val expectedChecksum = "be776ad8d02e9fa4c35484877b2d96753a847e8bfc59c917c2442f3746850fb5"
+    val fileName = "ten_bytes"
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3GetObject(fileName, s"/testbucket/$fileName", failFirstAttempt = true)
     stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event_one_chunk"), outputStream)

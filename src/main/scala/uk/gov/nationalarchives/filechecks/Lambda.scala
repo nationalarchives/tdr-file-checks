@@ -15,14 +15,19 @@ import software.amazon.awssdk.services.s3.S3AsyncClient
 
 import java.io.{InputStream, OutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.util.UUID
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.io.Source
 import scala.language.postfixOps
 
 class Lambda {
 
   private val logger: Logger = Logger[Lambda]
+
+  private val downloadedFileName: String = "source"
+  private val downloadMaxAttempts: Int = 3
+  private val downloadRetryDelay: FiniteDuration = 1.second
 
   private val containerSignature: SignatureFile = SignatureFile(containerSignatureName, containerSignatureVersion)
   private val droidSignature: SignatureFile = SignatureFile(droidSignatureName, droidSignatureVersion)
@@ -61,8 +66,32 @@ class Lambda {
 
   private def withDownloadedLocalFile[A](bucket: String, key: String)(fn: Path => IO[A]): IO[A] =
     Resource
-      .make(IO.blocking(Files.createTempFile("tdr-file-checks-", ".tmp")))(path => IO.blocking(Files.deleteIfExists(path)).void)
-      .use(path => s3Utils.downloadFiles(bucket, key, Some(path)).flatMap(_ => fn(path)))
+      .make(IO.blocking(Files.createTempDirectory("tdr-file-checks-")))(directory =>
+        IO.blocking {
+          Files.deleteIfExists(directory.resolve(downloadedFileName))
+          Files.deleteIfExists(directory)
+        }.void
+      )
+      .use { directory =>
+        val path = directory.resolve(downloadedFileName)
+        downloadWithRetry(bucket, key, path, downloadMaxAttempts).flatMap(_ => fn(path))
+      }
+
+  private def downloadWithRetry(bucket: String, key: String, path: Path, attemptsRemaining: Int): IO[Unit] =
+    downloadToFile(bucket, key, path).handleErrorWith { throwable =>
+      if (attemptsRemaining > 1) {
+        IO(logger.warn(s"Download of s3://$bucket/$key failed, retrying (${attemptsRemaining - 1} attempts remaining)", throwable)) *>
+          IO.sleep(downloadRetryDelay) *>
+          downloadWithRetry(bucket, key, path, attemptsRemaining - 1)
+      } else IO.raiseError(throwable)
+    }
+
+  // Streaming the object and writing it ourselves keeps the SDK away from the filesystem. Letting the SDK write the
+  // file makes its internal retries fail with FileAlreadyExistsException, which masks the error that caused the retry.
+  private def downloadToFile(bucket: String, key: String, path: Path): IO[Unit] =
+    Resource
+      .fromAutoCloseable(IO.blocking(s3Utils.getObjectAsStreamingInputStream(bucket, key)))
+      .use(inputStream => IO.blocking(Files.copy(inputStream, path, StandardCopyOption.REPLACE_EXISTING)).void)
 
   private def getObjectSize(bucket: String, key: String): IO[Long] =
     IO.fromFuture(IO {
