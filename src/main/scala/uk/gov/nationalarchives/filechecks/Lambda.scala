@@ -1,7 +1,7 @@
 package uk.gov.nationalarchives.filechecks
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.effect.{IO, Resource}
 import com.typesafe.scalalogging.Logger
 import graphql.codegen.types.FFIDMetadataInputValues
 import io.circe.Printer
@@ -15,7 +15,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient
 
 import java.io.{InputStream, OutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Path, Paths}
 import java.util.UUID
 import scala.io.Source
 import scala.language.postfixOps
@@ -28,7 +28,7 @@ class Lambda {
   private val droidSignature: SignatureFile = SignatureFile(droidSignatureName, droidSignatureVersion)
 
   private lazy val s3Client: S3AsyncClient = S3ClientProvider.s3AsyncClient
-  private lazy val s3Utils: S3Utils = S3Utils(s3Client)
+  private lazy val s3FileDownloader: S3FileDownloader = S3FileDownloader(s3Client)
   private lazy val s3CopyUtils: S3Utils = S3Utils(S3ClientProvider.s3CopyAsyncClient)
   private val droidFileChecksResultExtractor: DroidFileChecksResultExtractor = DroidFileChecksResultExtractor(containerSignature, droidSignature)
   private lazy val guardDutyScanResultExtractor: GuardDutyScanResultExtractor = GuardDutyScanResultExtractor(s3Client)
@@ -39,40 +39,22 @@ class Lambda {
     fileChecksResult <- processFileChecks(fileChecksParameters)
     _ <- IO(output.write(fileChecksResult.asJson.printWith(Printer.noSpaces).getBytes(UTF_8)))
   } yield ())
-    .handleErrorWith { throwable =>
-      IO(logger.error("Error processing file checks", throwable)) *>
-        IO(output.write(Map("error" -> throwable.getMessage).asJson.printWith(Printer.noSpaces).getBytes(UTF_8)))
-    }
+    .onError(throwable => IO(logger.error("Error processing file checks", throwable)))
     .unsafeRunSync()
 
   private def processFileChecks(fileChecksParameters: FileChecksParameters): IO[FileChecksResult] =
-    getObjectSize(fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey).flatMap { size =>
+    s3FileDownloader.objectSize(fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey).flatMap { size =>
       if (size > largeFileThresholdBytes) {
         val s3FilePath = Paths.get(s3FilesMountPoint, fileChecksParameters.s3SourceBucketKey)
         IO(logger.info("File {} exceeds threshold ({}B > {}B), using S3 Files mount at {}", fileChecksParameters.s3SourceBucketKey, size, largeFileThresholdBytes, s3FilePath)) *>
           runFileChecks(fileChecksParameters, s3FilePath)
       } else {
         IO(logger.info("File {} under threshold ({}B <= {}B), downloading to local", fileChecksParameters.s3SourceBucketKey, size, largeFileThresholdBytes)) *>
-          withDownloadedLocalFile(fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey) { localFile =>
+          s3FileDownloader.withDownloadedFile(fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey) { localFile =>
             runFileChecks(fileChecksParameters, localFile)
           }
       }
     }
-
-  private def withDownloadedLocalFile[A](bucket: String, key: String)(fn: Path => IO[A]): IO[A] =
-    Resource
-      .make(IO.blocking(Files.createTempFile("tdr-file-checks-", ".tmp")))(path => IO.blocking(Files.deleteIfExists(path)).void)
-      .use(path => s3Utils.downloadFiles(bucket, key, Some(path)).flatMap(_ => fn(path)))
-
-  private def getObjectSize(bucket: String, key: String): IO[Long] =
-    IO.fromFuture(IO {
-      import scala.jdk.FutureConverters._
-      s3Client
-        .headObject(
-          software.amazon.awssdk.services.s3.model.HeadObjectRequest.builder().bucket(bucket).key(key).build()
-        )
-        .asScala
-    }).map(_.contentLength())
 
   private def runFileChecks(fileChecksParameters: FileChecksParameters, filePath: Path): IO[FileChecksResult] =
     for {
