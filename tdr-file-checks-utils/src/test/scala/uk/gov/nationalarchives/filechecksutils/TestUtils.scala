@@ -2,8 +2,8 @@ package uk.gov.nationalarchives.filechecksutils
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.http.{HttpHeader, HttpHeaders}
-import com.github.tomakehurst.wiremock.stubbing.StubMapping
+import com.github.tomakehurst.wiremock.http.{Fault, HttpHeader, HttpHeaders}
+import com.github.tomakehurst.wiremock.stubbing.{Scenario, StubMapping}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -102,6 +102,29 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
             .withStatus(200)
         )
     )
+  }
+
+  /** Stubs a full object download. If failFirstAttempt is set, the first request fails mid-response so that the
+    * download retry behaviour is exercised.
+    */
+  def stubS3GetObject(fileName: String, urlStub: String, failFirstAttempt: Boolean = false): Unit = {
+    val bytes = Files.readAllBytes(Paths.get(s"./src/test/resources/testfiles/$fileName"))
+    val success = aResponse().withStatus(200).withBody(bytes)
+    if (failFirstAttempt) {
+      val scenario = s"download-$fileName"
+      wiremockS3.stubFor(
+        get(urlEqualTo(urlStub))
+          .inScenario(scenario)
+          .whenScenarioStateIs(Scenario.STARTED)
+          .willReturn(aResponse().withFault(Fault.RANDOM_DATA_THEN_CLOSE))
+          .willSetStateTo("downloaded")
+      )
+      wiremockS3.stubFor(
+        get(urlEqualTo(urlStub)).inScenario(scenario).whenScenarioStateIs("downloaded").willReturn(success)
+      )
+    } else {
+      wiremockS3.stubFor(get(urlEqualTo(urlStub)).willReturn(success))
+    }
   }
 
   def stubS3GetBytes(fileName: String, urlStub: String): Unit = {
