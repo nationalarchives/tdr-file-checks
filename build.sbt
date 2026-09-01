@@ -51,7 +51,10 @@ lazy val tdrFileChecksUtils = (project in file("tdr-file-checks-utils"))
     dependencyOverrides ++= Seq(
       bcprov,
       bcpkix,
-      bcutil
+      bcutil,
+      bcprovJdk15to18,
+      bcpkixJdk15to18,
+      bcutilJdk15to18
     )
   )
 
@@ -78,6 +81,9 @@ lazy val root = (project in file("."))
     dependencyOverrides ++= Seq(
       bcprov,
       bcpkix,
-      bcutil
+      bcutil,
+      bcprovJdk15to18,
+      bcpkixJdk15to18,
+      bcutilJdk15to18
     )
   )
