@@ -19,6 +19,7 @@ import java.nio.file.{Path, Paths}
 import java.util.UUID
 import scala.io.Source
 import scala.language.postfixOps
+import scala.util.Using
 
 class Lambda {
 
@@ -34,7 +35,7 @@ class Lambda {
   private lazy val guardDutyScanResultExtractor: GuardDutyScanResultExtractor = GuardDutyScanResultExtractor(s3Client)
 
   def process(inputBody: InputStream, output: OutputStream): Unit = (for {
-    body <- IO(Source.fromInputStream(inputBody).getLines().mkString)
+    body <- IO(Using.resource(Source.fromInputStream(inputBody))(_.getLines().mkString))
     fileChecksParameters <- IO.fromEither(decode[FileChecksParameters](body))
     fileChecksResult <- processFileChecks(fileChecksParameters)
     _ <- IO(output.write(fileChecksResult.asJson.printWith(Printer.noSpaces).getBytes(UTF_8)))
@@ -45,7 +46,7 @@ class Lambda {
   private def processFileChecks(fileChecksParameters: FileChecksParameters): IO[FileChecksResult] =
     s3FileDownloader.objectSize(fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey).flatMap { size =>
       if (size > largeFileThresholdBytes) {
-        val s3FilePath = Paths.get(s3FilesMountPoint, fileChecksParameters.s3SourceBucketKey)
+        val s3FilePath = Paths.get(s3FilesMountPoint, fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey)
         IO(logger.info("File {} exceeds threshold ({}B > {}B), using S3 Files mount at {}", fileChecksParameters.s3SourceBucketKey, size, largeFileThresholdBytes, s3FilePath)) *>
           runFileChecks(fileChecksParameters, s3FilePath)
       } else {
