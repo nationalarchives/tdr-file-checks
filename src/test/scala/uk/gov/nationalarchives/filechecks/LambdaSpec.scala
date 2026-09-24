@@ -118,15 +118,38 @@ class LambdaSpec extends TestUtils {
     val outputStream = new ByteArrayOutputStream()
     val fileName = "ten_bytes"
     stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3GetObject(fileName, s"/testbucket/$fileName")
     stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
-    a[Throwable] should be thrownBy new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
-    outputStream.toByteArray shouldBe empty
+    new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
+
+    wiremockS3.verify(getRequestedFor(urlEqualTo(s"/testbucket/$fileName")))
+    outputStream.toByteArray should not be empty
   }
 
   "The process method" should "throw when the file does not exist" in {
     val outputStream = new ByteArrayOutputStream()
     a[Throwable] should be thrownBy new Lambda().process(createEvent("file_event_missing_file"), outputStream)
+    outputStream.toByteArray shouldBe empty
+  }
+
+  "The process method" should "reject mounted paths that escape the bucket" in {
+    val outputStream = new ByteArrayOutputStream()
+    val fileName = "../Test.docx"
+    stubS3HeadObject("Test.docx", s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+
+    val event =
+      """{
+        |  "userId": "bd4cbe2e-b752-4432-8aec-a3234b9d4339",
+        |  "consignmentId": "f0a73877-6057-4bbb-a1eb-7c7b73cab586",
+        |  "fileId": "acea5919-25a3-4c6b-8908-fa47cc77878f",
+        |  "originalPath": "../Test.docx",
+        |  "s3SourceBucket": "testbucket",
+        |  "s3SourceBucketKey": "../Test.docx"
+        |}""".stripMargin
+
+    a[IllegalArgumentException] should be thrownBy new Lambda().process(createEventFromJson(event), outputStream)
     outputStream.toByteArray shouldBe empty
   }
 
