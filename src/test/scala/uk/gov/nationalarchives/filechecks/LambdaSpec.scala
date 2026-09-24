@@ -22,6 +22,10 @@ class LambdaSpec extends TestUtils {
     new ByteArrayInputStream(fromResource(s"json/$location.json").mkString.getBytes())
   }
 
+  def createEventFromJson(json: String): ByteArrayInputStream = {
+    new ByteArrayInputStream(json.getBytes())
+  }
+
   "The process method" should "return the correct file checks results for given parameters" in {
     val outputStream = new ByteArrayOutputStream()
     val expectedChecksum = "252c2811bd57fc3bcc7683bd6d9515aeeab0758bf1c3e71718851c7831ca848e"
@@ -83,6 +87,28 @@ class LambdaSpec extends TestUtils {
     stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
 
     new Lambda().process(createEvent("file_event"), outputStream)
+
+    wiremockS3.verify(0, getRequestedFor(urlEqualTo(s"/testbucket/$fileName")))
+    outputStream.toByteArray should not be empty
+  }
+
+  "The process method" should "use the mounted S3 path for nested keys above the threshold" in {
+    val outputStream = new ByteArrayOutputStream()
+    val fileName = "nested/Test.docx"
+    stubS3HeadObject("Test.docx", s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+
+    val event =
+      """{
+        |  "userId": "bd4cbe2e-b752-4432-8aec-a3234b9d4339",
+        |  "consignmentId": "f0a73877-6057-4bbb-a1eb-7c7b73cab586",
+        |  "fileId": "acea5919-25a3-4c6b-8908-fa47cc77878f",
+        |  "originalPath": "nested/Test.docx",
+        |  "s3SourceBucket": "testbucket",
+        |  "s3SourceBucketKey": "nested/Test.docx"
+        |}""".stripMargin
+
+    new Lambda().process(createEventFromJson(event), outputStream)
 
     wiremockS3.verify(0, getRequestedFor(urlEqualTo(s"/testbucket/$fileName")))
     outputStream.toByteArray should not be empty

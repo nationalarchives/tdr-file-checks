@@ -46,7 +46,7 @@ class Lambda {
   private def processFileChecks(fileChecksParameters: FileChecksParameters): IO[FileChecksResult] =
     s3FileDownloader.objectSize(fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey).flatMap { size =>
       if (size > largeFileThresholdBytes) {
-        val s3FilePath = Paths.get(s3FilesMountPoint, fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey)
+        val s3FilePath = mountedS3FilePath(fileChecksParameters.s3SourceBucket, fileChecksParameters.s3SourceBucketKey)
         IO(logger.info("File {} exceeds threshold ({}B > {}B), using S3 Files mount at {}", fileChecksParameters.s3SourceBucketKey, size, largeFileThresholdBytes, s3FilePath)) *>
           runFileChecks(fileChecksParameters, s3FilePath)
       } else {
@@ -56,6 +56,9 @@ class Lambda {
           }
       }
     }
+
+  private def mountedS3FilePath(bucket: String, key: String): Path =
+    Paths.get(s3FilesMountPoint, bucket).resolve(Paths.get(key.stripPrefix("/")))
 
   private def runFileChecks(fileChecksParameters: FileChecksParameters, filePath: Path): IO[FileChecksResult] =
     for {
