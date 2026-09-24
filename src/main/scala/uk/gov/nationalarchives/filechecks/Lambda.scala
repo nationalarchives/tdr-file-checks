@@ -63,7 +63,12 @@ class Lambda {
     if (!mountedPath.startsWith(bucketPath)) {
       throw new IllegalArgumentException(s"Mounted S3 key '$key' escapes bucket '$bucket'")
     }
-    mountedPath
+    val realBucketPath = bucketPath.toRealPath()
+    val realMountedPath = mountedPath.toRealPath()
+    if (!realMountedPath.startsWith(realBucketPath)) {
+      throw new IllegalArgumentException(s"Mounted S3 key '$key' escapes bucket '$bucket'")
+    }
+    realMountedPath
   }
 
   private def runFileChecks(fileChecksParameters: FileChecksParameters, filePath: Path): IO[FileChecksResult] =

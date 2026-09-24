@@ -12,11 +12,11 @@ import software.amazon.awssdk.services.s3.S3Client
 
 import java.io.RandomAccessFile
 import java.net.URI
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.util
 import java.util.UUID
 import scala.io.Source.fromFile
-import scala.jdk.CollectionConverters.{IterableHasAsJava, MapHasAsJava}
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Using}
 
 class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterAll with TableDrivenPropertyChecks {
@@ -27,6 +27,8 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
     .build()
 
   val wiremockS3 = new WireMockServer(8003)
+  private val testFilesDirectory = Paths.get("./src/test/resources/testfiles")
+  private val mountedS3Directory = Paths.get("/tmp/tdr-file-checks-mount")
 
   def getFile(filePath: String): String = {
     Using(fromFile(filePath)) { file => file.mkString } match {
@@ -36,12 +38,14 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
   }
 
   override def beforeEach(): Unit = {
+    populateMountedS3Files()
     wiremockS3.start()
   }
 
   override def afterEach(): Unit = {
     wiremockS3.resetAll()
     wiremockS3.stop()
+    deleteRecursively(mountedS3Directory)
   }
 
   def getBytesForRange(filePath: String, range: String): Array[Byte] = {
@@ -178,5 +182,28 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
         .withQueryParams(params)
         .willReturn(okXml(response.toString))
     )
+  }
+
+  private def populateMountedS3Files(): Unit = {
+    val bucketDirectory = mountedS3Directory.resolve("testbucket")
+    val nestedDirectory = bucketDirectory.resolve("nested")
+    Files.createDirectories(nestedDirectory)
+    List("Test.docx", "Test.xlsx", "more_than_one_meg", "ten_bytes").foreach { fileName =>
+      Files.copy(testFilesDirectory.resolve(fileName), bucketDirectory.resolve(fileName), StandardCopyOption.REPLACE_EXISTING)
+    }
+    Files.copy(testFilesDirectory.resolve("Test.docx"), nestedDirectory.resolve("Test.docx"), StandardCopyOption.REPLACE_EXISTING)
+  }
+
+  private def deleteRecursively(path: Path): Unit = {
+    if (Files.exists(path)) {
+      Files
+        .walk(path)
+        .iterator()
+        .asScala
+        .toList
+        .sortBy(_.getNameCount)
+        .reverse
+        .foreach(path => Files.deleteIfExists(path))
+    }
   }
 }
