@@ -67,6 +67,9 @@ class Lambda {
     if (!Files.exists(bucketPath)) {
       throw new IllegalArgumentException(s"Mounted S3 bucket path for '$bucket' does not exist")
     }
+    if (!Files.exists(mountedPath)) {
+      throw new IllegalArgumentException(s"Mounted S3 key '$key' does not exist in bucket '$bucket'")
+    }
     val realBucketPath = bucketPath.toRealPath()
     val realMountedPath = mountedPath.toRealPath()
     if (!realMountedPath.startsWith(realBucketPath)) {

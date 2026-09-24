@@ -6,8 +6,10 @@ import io.circe.parser.decode
 import org.apache.commons.io.output.ByteArrayOutputStream
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.filechecksutils.TestUtils
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException
 
 import java.io.ByteArrayInputStream
+import java.util.concurrent.CompletionException
 import java.util.UUID
 import scala.io.Source.fromResource
 
@@ -130,7 +132,10 @@ class LambdaSpec extends TestUtils {
 
   "The process method" should "throw when the file does not exist" in {
     val outputStream = new ByteArrayOutputStream()
-    a[Throwable] should be thrownBy new Lambda().process(createEvent("file_event_missing_file"), outputStream)
+    val exception = intercept[CompletionException] {
+      new Lambda().process(createEvent("file_event_missing_file"), outputStream)
+    }
+    exception.getCause shouldBe a[NoSuchKeyException]
     outputStream.toByteArray shouldBe empty
   }
 
