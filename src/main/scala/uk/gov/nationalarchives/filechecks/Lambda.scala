@@ -59,7 +59,11 @@ class Lambda {
     }
 
   private def mountedS3FilePath(bucket: String, key: String): Path = {
-    val bucketPath = Paths.get(s3FilesMountPoint, bucket).normalize()
+    val bucketName = Paths.get(bucket)
+    if (bucketName.isAbsolute || bucketName.getNameCount != 1 || bucketName.normalize().toString != bucket) {
+      throw new IllegalArgumentException(s"Mounted S3 bucket '$bucket' is invalid")
+    }
+    val bucketPath = Paths.get(s3FilesMountPoint).resolve(bucketName).normalize()
     val mountedPath = bucketPath.resolve(Paths.get(key.stripPrefix("/"))).normalize()
     if (!mountedPath.startsWith(bucketPath)) {
       throw new IllegalArgumentException(s"Mounted S3 key '$key' escapes bucket '$bucket'")
