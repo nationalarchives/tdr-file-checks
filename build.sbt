@@ -47,7 +47,15 @@ lazy val tdrFileChecksUtils = (project in file("tdr-file-checks-utils"))
       mockito % Test,
       wiremock % Test
     ),
-    assembly / skip := true
+    assembly / skip := true,
+    dependencyOverrides ++= Seq(
+      bcprov,
+      bcpkix,
+      bcutil,
+      bcprovJdk15to18,
+      bcpkixJdk15to18,
+      bcutilJdk15to18
+    )
   )
 
 lazy val root = (project in file("."))
@@ -69,5 +77,13 @@ lazy val root = (project in file("."))
       wiremock % Test
     ),
     assembly / skip := false,
-    assembly / assemblyJarName := "file-checks.jar"
+    assembly / assemblyJarName := "file-checks.jar",
+    dependencyOverrides ++= Seq(
+      bcprov,
+      bcpkix,
+      bcutil,
+      bcprovJdk15to18,
+      bcpkixJdk15to18,
+      bcutilJdk15to18
+    )
   )

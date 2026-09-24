@@ -4,24 +4,20 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.MockitoSugar
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers._
-import org.scalatest.prop.TableFor4
+import org.scalatest.prop.TableFor3
 import uk.gov.nationalarchives.droid.core.interfaces.IdentificationMethod
 import uk.gov.nationalarchives.droid.internal.api.DroidAPI.{APIIdentificationResult, APIResult}
 import uk.gov.nationalarchives.droid.internal.api.{DroidAPI, HashAlgorithm}
 
 import java.net.URI
-import java.util
+import java.nio.file.Paths
 import java.util.UUID
 import scala.jdk.CollectionConverters._
 
 class DroidFileChecksResultExtractorSpec extends TestUtils with MockitoSugar with EitherValues {
-  val bucketName = "testbucket"
-  val userId: UUID = UUID.randomUUID()
-  val consignmentId: UUID = UUID.randomUUID()
   val fileId: UUID = UUID.randomUUID()
   val mockUri: URI = URI.create("/some/uri")
-  val emptyChecksumMap: util.Map[HashAlgorithm, String] = Map.empty[HashAlgorithm, String].asJava
-  val expectedChecksum = "996902da9b9ce84840b9c835fed417f4381309df6da0603a6cf16c4ec46742d7"
+  val localFileUri: URI = URI.create("file:///tmp/test-file")
 
   "The fileChecksResult method" should "return the correct droid and signature version" in {
     val mockApi = mock[DroidAPI]
@@ -33,7 +29,7 @@ class DroidFileChecksResultExtractorSpec extends TestUtils with MockitoSugar wit
     when(mockApi.getBinarySignatureVersion).thenReturn(testBinarySignatureVersion)
     when(mockApi.getContainerSignatureVersion).thenReturn(testContainerSignatureVersion)
 
-    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(consignmentId, fileId, "originalPath", "testbucket", "bucketKey")
+    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(fileId, "originalPath", localFileUri)
 
     val ffid = result.value.ffidMetadataInputValues
     ffid.softwareVersion should equal(testDroidVersion)
@@ -41,15 +37,13 @@ class DroidFileChecksResultExtractorSpec extends TestUtils with MockitoSugar wit
     ffid.binarySignatureFileVersion should equal(testBinarySignatureVersion)
   }
 
-  "The fileChecksResult method" should "return checksum and the correct value if the extension and puid are empty" in {
+  "The fileChecksResult method" should "return the correct value if the extension and puid are empty" in {
     val mockApi = mock[DroidAPI]
     val identificationResult = new APIIdentificationResult(null, IdentificationMethod.EXTENSION, null, "testName", false, mockUri)
-    val expectedChecksum = "feb8c01fd4fd0d6e56d9a630ef82b244df25f141ac2d611115cda74fa0a2a2a7"
-    val mockResult = new APIResult(List(identificationResult).asJava, Map(HashAlgorithm.SHA256 -> expectedChecksum).asJava)
-    when(mockApi.submit(URI.create("s3://testbucket/bucketKey"), "txt")).thenReturn(List(mockResult).asJava)
+    val mockResult = new APIResult(List(identificationResult).asJava, Map.empty[HashAlgorithm, String].asJava)
+    when(mockApi.submit(localFileUri, "txt")).thenReturn(List(mockResult).asJava)
 
-    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(consignmentId, fileId, "originalPath.txt", "testbucket", "bucketKey")
-    result.value.checksum should equal(expectedChecksum)
+    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(fileId, "originalPath.txt", localFileUri)
     val ffid = result.value.ffidMetadataInputValues
     val m = ffid.matches.head
     m.extension.isEmpty should be(true)
@@ -59,10 +53,22 @@ class DroidFileChecksResultExtractorSpec extends TestUtils with MockitoSugar wit
   "The fileChecksResult method" should "return a file extension mismatch if one exists" in {
     val mockApi = mock[DroidAPI]
     val apiIdentification = new APIIdentificationResult(null, IdentificationMethod.EXTENSION, null, "testName", true, mockUri)
-    val mockResult = new APIResult(List(apiIdentification).asJava, emptyChecksumMap)
-    when(mockApi.submit(URI.create("s3://testbucket/bucketKey"), "pdf")).thenReturn(List(mockResult).asJava)
+    val mockResult = new APIResult(List(apiIdentification).asJava, Map.empty[HashAlgorithm, String].asJava)
+    when(mockApi.submit(localFileUri, "pdf")).thenReturn(List(mockResult).asJava)
 
-    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(consignmentId, fileId, "originalPath.pdf", "testbucket", "bucketKey")
+    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(fileId, "originalPath.pdf", localFileUri)
+    val ffid = result.value.ffidMetadataInputValues
+    val m = ffid.matches.head
+    m.fileExtensionMismatch should be(Some(true))
+  }
+
+  "The fileChecksResult method" should "call API without file extension if given file has no extension" in {
+    val mockApi = mock[DroidAPI]
+    val apiIdentification = new APIIdentificationResult(null, IdentificationMethod.EXTENSION, null, "testName", true, mockUri)
+    val mockResult = new APIResult(List(apiIdentification).asJava, Map.empty[HashAlgorithm, String].asJava)
+    when(mockApi.submit(localFileUri)).thenReturn(List(mockResult).asJava)
+
+    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(fileId, "originalPath", localFileUri)
     val ffid = result.value.ffidMetadataInputValues
     val m = ffid.matches.head
     m.fileExtensionMismatch should be(Some(true))
@@ -72,10 +78,10 @@ class DroidFileChecksResultExtractorSpec extends TestUtils with MockitoSugar wit
     val mockApi = mock[DroidAPI]
     val apiIdentification = new APIIdentificationResult(null, IdentificationMethod.EXTENSION, null, ".formatName", true, mockUri)
 
-    val mockResult = new APIResult(List(apiIdentification).asJava, emptyChecksumMap)
-    when(mockApi.submit(URI.create("s3://testbucket/bucketKey"), "txt")).thenReturn(List(mockResult).asJava)
+    val mockResult = new APIResult(List(apiIdentification).asJava, Map.empty[HashAlgorithm, String].asJava)
+    when(mockApi.submit(localFileUri, "txt")).thenReturn(List(mockResult).asJava)
 
-    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(consignmentId, fileId, "originalPath.txt", "testbucket", "bucketKey")
+    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(fileId, "originalPath.txt", localFileUri)
     val ffid = result.value.ffidMetadataInputValues
     val m = ffid.matches.head
     m.formatName should be(Some(".formatName"))
@@ -87,13 +93,13 @@ class DroidFileChecksResultExtractorSpec extends TestUtils with MockitoSugar wit
       count <- List("1", "2", "3")
       res <- new APIResult(
         List(new APIIdentificationResult(s"extension$count", IdentificationMethod.EXTENSION, s"puid$count", s"testName$count", false, mockUri)).asJava,
-        emptyChecksumMap
+        Map.empty[HashAlgorithm, String].asJava
       ) :: Nil
     } yield res
 
-    when(mockApi.submit(URI.create("s3://testbucket/bucketKey"), "txt")).thenReturn(apiResults.asJava)
+    when(mockApi.submit(localFileUri, "txt")).thenReturn(apiResults.asJava)
 
-    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(consignmentId, fileId, "originalPath.txt", "testbucket", "bucketKey")
+    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(fileId, "originalPath.txt", localFileUri)
     val ffid = result.value.ffidMetadataInputValues
     ffid.matches.size should equal(3)
   }
@@ -101,55 +107,50 @@ class DroidFileChecksResultExtractorSpec extends TestUtils with MockitoSugar wit
   "The fileChecksResult method" should "return an error if there is an error running the droid commands" in {
     val mockApi = mock[DroidAPI]
     when(mockApi.submit(any[URI], any[String])).thenThrow(new Exception("Droid error processing files"))
-    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(consignmentId, fileId, "originalPath", "testbucket", "bucketKey")
+    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(fileId, "originalPath", localFileUri)
     result.left.value.getMessage should equal(s"Error processing file id $fileId with original path originalPath")
     result.left.value.getCause.getMessage should equal("Droid error processing files")
   }
 
   "The fileChecksResult method" should "return a correct value if there are quotes in the filename" in {
     val mockApi = mock[DroidAPI]
-    when(mockApi.submit(any[URI])).thenReturn(List().asJava)
-    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(consignmentId, fileId, """rootDirectory/originalPath"withQu'ote""", "testbucket", "bucketKey")
+    when(mockApi.submit(any[URI], any[String])).thenReturn(List().asJava)
+    val result = new DroidFileChecksResultExtractor(mockApi).fileChecksResult(fileId, """rootDirectory/originalPath"withQu'ote""", localFileUri)
     result.isRight should be(true)
   }
 
-  val testFiles: TableFor4[String, List[String], Boolean, String] = Table(
-    ("FileName", "ExpectedPuids", "FileExtensionMismatch", "Checksum"),
-    ("Test.docx", List("fmt/412"), false, "feb8c01fd4fd0d6e56d9a630ef82b244df25f141ac2d611115cda74fa0a2a2a7"),
-    ("Test.xlsx", List("fmt/214"), false, "996902da9b9ce84840b9c835fed417f4381309df6da0603a6cf16c4ec46742d7")
+  val testFiles: TableFor3[String, List[String], Boolean] = Table(
+    ("FileName", "ExpectedPuids", "FileExtensionMismatch"),
+    ("Test.docx", List("fmt/412"), false),
+    ("Test.xlsx", List("fmt/214"), false)
   )
 
-  forAll(testFiles) { (fileName, expectedPuids, fileExtensionMismatch, checksum) =>
+  forAll(testFiles) { (fileName, expectedPuids, fileExtensionMismatch) =>
     "The fileChecksResult method" should s"return the correct file checks results for $fileName" in {
-      testDroidFileChecksResult(fileName, "originalPath." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch, checksum)
+      testDroidFileChecksResult(fileName, "originalPath." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch)
     }
 
     "The fileChecksResult method" should s"return the correct file checks results for a nested directory for $fileName" in {
-      testDroidFileChecksResult(fileName, "rootDirectory/subDirectory/originalPath." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch, checksum)
+      testDroidFileChecksResult(fileName, "rootDirectory/subDirectory/originalPath." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch)
     }
 
     "The fileChecksResult method" should s"return the correct file checks results for a file with a backtick for $fileName" in {
-      testDroidFileChecksResult(fileName, "pathwith`." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch, checksum)
+      testDroidFileChecksResult(fileName, "pathwith`." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch)
     }
 
     "The fileChecksResult method" should s"return the correct file checks results for a file with a space for $fileName" in {
-      testDroidFileChecksResult(fileName, "path with space." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch, checksum)
+      testDroidFileChecksResult(fileName, "path with space." + fileName.split("\\.").last, expectedPuids, fileExtensionMismatch)
     }
   }
 
-  def testDroidFileChecksResult(fileName: String, originalFilePath: String, expectedPuids: List[String], expectedFileExtensionMismatch: Boolean, expectedChecksum: String): Unit = {
-    val objectKey = s"/$userId/$consignmentId/$fileId"
-    stubS3GetBytes(fileName, objectKey)
-    stubS3HeadObject(fileName, objectKey)
-    stubS3GetObjectList(userId, consignmentId, List(fileId), objectKey)
-
+  def testDroidFileChecksResult(fileName: String, originalFilePath: String, expectedPuids: List[String], expectedFileExtensionMismatch: Boolean): Unit = {
+    val testFilePath = Paths.get(s"./src/test/resources/testfiles/$fileName").toAbsolutePath
     val containerSignature: SignatureFile = SignatureFile("container-signature-", "20240715")
     val droidSignature: SignatureFile = SignatureFile("DROID_SignatureFile_V", "120")
 
-    val result = DroidFileChecksResultExtractor(containerSignature, droidSignature, s3Client).fileChecksResult(consignmentId, fileId, originalFilePath, bucketName, objectKey)
+    val result = DroidFileChecksResultExtractor(containerSignature, droidSignature).fileChecksResult(fileId, originalFilePath, testFilePath.toUri)
     result.isRight should be(true)
     result.foreach(v => {
-      v.checksum should equal(expectedChecksum)
       v.ffidMetadataInputValues.matches.size should equal(expectedPuids.size)
       v.ffidMetadataInputValues.matches.exists(_.fileExtensionMismatch == Option(expectedFileExtensionMismatch)) should equal(true)
       expectedPuids.foreach(puid => v.ffidMetadataInputValues.matches.exists(_.puid == Option(puid)) should equal(true))

@@ -2,8 +2,8 @@ package uk.gov.nationalarchives.filechecksutils
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.http.{HttpHeader, HttpHeaders}
-import com.github.tomakehurst.wiremock.stubbing.StubMapping
+import com.github.tomakehurst.wiremock.http.{Fault, HttpHeader, HttpHeaders}
+import com.github.tomakehurst.wiremock.stubbing.{Scenario, StubMapping}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -12,11 +12,11 @@ import software.amazon.awssdk.services.s3.S3Client
 
 import java.io.RandomAccessFile
 import java.net.URI
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.util
 import java.util.UUID
 import scala.io.Source.fromFile
-import scala.jdk.CollectionConverters.{IterableHasAsJava, MapHasAsJava}
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Using}
 
 class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterAll with TableDrivenPropertyChecks {
@@ -27,6 +27,8 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
     .build()
 
   val wiremockS3 = new WireMockServer(8003)
+  private val testFilesDirectory = Paths.get("./src/test/resources/testfiles")
+  private val mountedS3Directory = Paths.get("/tmp/tdr-file-checks-mount")
 
   def getFile(filePath: String): String = {
     Using(fromFile(filePath)) { file => file.mkString } match {
@@ -36,12 +38,14 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
   }
 
   override def beforeEach(): Unit = {
+    populateMountedS3Files()
     wiremockS3.start()
   }
 
   override def afterEach(): Unit = {
     wiremockS3.resetAll()
     wiremockS3.stop()
+    deleteRecursively(mountedS3Directory)
   }
 
   def getBytesForRange(filePath: String, range: String): Array[Byte] = {
@@ -104,6 +108,29 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
     )
   }
 
+  /** Stubs a full object download. If failFirstAttempt is set, the first request fails mid-response so that the
+    * download retry behaviour is exercised.
+    */
+  def stubS3GetObject(fileName: String, urlStub: String, failFirstAttempt: Boolean = false): Unit = {
+    val bytes = Files.readAllBytes(Paths.get(s"./src/test/resources/testfiles/$fileName"))
+    val success = aResponse().withStatus(200).withBody(bytes)
+    if (failFirstAttempt) {
+      val scenario = s"download-$fileName"
+      wiremockS3.stubFor(
+        get(urlEqualTo(urlStub))
+          .inScenario(scenario)
+          .whenScenarioStateIs(Scenario.STARTED)
+          .willReturn(aResponse().withFault(Fault.RANDOM_DATA_THEN_CLOSE))
+          .willSetStateTo("downloaded")
+      )
+      wiremockS3.stubFor(
+        get(urlEqualTo(urlStub)).inScenario(scenario).whenScenarioStateIs("downloaded").willReturn(success)
+      )
+    } else {
+      wiremockS3.stubFor(get(urlEqualTo(urlStub)).willReturn(success))
+    }
+  }
+
   def stubS3GetBytes(fileName: String, urlStub: String): Unit = {
     val filePath = s"./src/test/resources/testfiles/$fileName"
     val bytes = Files.readAllBytes(Paths.get(filePath))
@@ -155,5 +182,28 @@ class TestUtils extends AnyFlatSpec with BeforeAndAfterEach with BeforeAndAfterA
         .withQueryParams(params)
         .willReturn(okXml(response.toString))
     )
+  }
+
+  private def populateMountedS3Files(): Unit = {
+    val bucketDirectory = mountedS3Directory.resolve("testbucket")
+    val nestedDirectory = bucketDirectory.resolve("nested")
+    Files.createDirectories(nestedDirectory)
+    List("Test.docx", "Test.xlsx", "more_than_one_meg", "ten_bytes").foreach { fileName =>
+      Files.copy(testFilesDirectory.resolve(fileName), bucketDirectory.resolve(fileName), StandardCopyOption.REPLACE_EXISTING)
+    }
+    Files.copy(testFilesDirectory.resolve("Test.docx"), nestedDirectory.resolve("Test.docx"), StandardCopyOption.REPLACE_EXISTING)
+  }
+
+  private def deleteRecursively(path: Path): Unit = {
+    if (Files.exists(path)) {
+      Files
+        .walk(path)
+        .iterator()
+        .asScala
+        .toList
+        .sortBy(_.getNameCount)
+        .reverse
+        .foreach(path => Files.deleteIfExists(path))
+    }
   }
 }
