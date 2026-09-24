@@ -1,5 +1,6 @@
 package uk.gov.nationalarchives.filechecks
 
+import com.github.tomakehurst.wiremock.client.WireMock.{getRequestedFor, urlEqualTo}
 import io.circe.generic.auto._
 import io.circe.parser.decode
 import org.apache.commons.io.output.ByteArrayOutputStream
@@ -73,6 +74,28 @@ class LambdaSpec extends TestUtils {
     val result = outputStream.toByteArray.map(_.toChar).mkString
     val decoded = decode[FileChecksResult](result).toOption
     validateFileChecksResult(expectedChecksum, decoded)
+  }
+
+  "The process method" should "use the mounted S3 path for files above the threshold" in {
+    val outputStream = new ByteArrayOutputStream()
+    val fileName = "Test.docx"
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+
+    new Lambda().process(createEvent("file_event"), outputStream)
+
+    wiremockS3.verify(0, getRequestedFor(urlEqualTo(s"/testbucket/$fileName")))
+    outputStream.toByteArray should not be empty
+  }
+
+  "The process method" should "download files below the threshold" in {
+    val outputStream = new ByteArrayOutputStream()
+    val fileName = "ten_bytes"
+    stubS3HeadObject(fileName, s"/testbucket/$fileName")
+    stubS3ObjectTagging(s"/testbucket/$fileName?tagging", "GuardDutyMalwareScanStatus", noThreatsFound)
+
+    a[Throwable] should be thrownBy new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
+    outputStream.toByteArray shouldBe empty
   }
 
   "The process method" should "throw when the file does not exist" in {
