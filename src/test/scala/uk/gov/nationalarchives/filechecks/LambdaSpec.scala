@@ -64,6 +64,7 @@ class LambdaSpec extends TestUtils {
     new Lambda().process(createEvent("file_event_one_chunk"), outputStream)
     val result = outputStream.toByteArray.map(_.toChar).mkString
     val decoded = decode[FileChecksResult](result).toOption
+    wiremockS3.verify(2, getRequestedFor(urlEqualTo(s"/testbucket/$fileName")))
     validateFileChecksResult(expectedChecksum, decoded)
   }
 

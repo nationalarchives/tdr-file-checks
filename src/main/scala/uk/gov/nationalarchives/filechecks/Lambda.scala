@@ -15,6 +15,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient
 
 import java.io.{InputStream, OutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.Files
 import java.nio.file.{Path, Paths}
 import java.util.UUID
 import scala.io.Source
@@ -35,7 +36,7 @@ class Lambda {
   private lazy val guardDutyScanResultExtractor: GuardDutyScanResultExtractor = GuardDutyScanResultExtractor(s3Client)
 
   def process(inputBody: InputStream, output: OutputStream): Unit = (for {
-    body <- IO(Using.resource(Source.fromInputStream(inputBody))(_.getLines().mkString))
+    body <- IO(Using.resource(Source.fromInputStream(inputBody))(_.mkString))
     fileChecksParameters <- IO.fromEither(decode[FileChecksParameters](body))
     fileChecksResult <- processFileChecks(fileChecksParameters)
     _ <- IO(output.write(fileChecksResult.asJson.printWith(Printer.noSpaces).getBytes(UTF_8)))
@@ -62,6 +63,9 @@ class Lambda {
     val mountedPath = bucketPath.resolve(Paths.get(key.stripPrefix("/"))).normalize()
     if (!mountedPath.startsWith(bucketPath)) {
       throw new IllegalArgumentException(s"Mounted S3 key '$key' escapes bucket '$bucket'")
+    }
+    if (!Files.exists(bucketPath)) {
+      throw new IllegalArgumentException(s"Mounted S3 bucket path for '$bucket' does not exist")
     }
     val realBucketPath = bucketPath.toRealPath()
     val realMountedPath = mountedPath.toRealPath()
