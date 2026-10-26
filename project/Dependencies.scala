@@ -3,8 +3,8 @@ import sbt.*
 object Dependencies {
 
   private val circeVersion = "0.14.16"
-  private val nettyVersion = "4.1.99.Final"
-  
+  private val nettyVersion = "4.1.139.Final"
+
   lazy val nettyOverrides: Seq[ModuleID] = Seq(
     "netty-buffer",
     "netty-codec",
@@ -19,7 +19,7 @@ object Dependencies {
     "netty-transport-classes-epoll",
     "netty-transport-native-unix-common"
   ).map("io.netty" % _ % nettyVersion)
-  
+
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.20"
   lazy val generatedGraphql = "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.477"
   lazy val s3Utils = "uk.gov.nationalarchives" %% "s3-utils" % "0.1.338"
