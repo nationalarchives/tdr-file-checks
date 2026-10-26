@@ -19,6 +19,9 @@ ThisBuild / assembly / assemblyMergeStrategy := {
   case _                                         => MergeStrategy.first
 }
 
+ThisBuild / dependencyOverrides ++= nettyOverrides
+
+
 // Common test settings
 ThisBuild / Test / fork := true
 ThisBuild / Test / envVars := Map(
