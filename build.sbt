@@ -21,6 +21,9 @@ ThisBuild / assembly / assemblyMergeStrategy := {
 
 ThisBuild / dependencyOverrides ++= nettyOverrides
 
+// sbt 2 defaults exportJars to true; keep class directories on the classpath so
+// resources (e.g. signature files) can be listed via getResource("/")
+ThisBuild / exportJars := false
 
 // Common test settings
 ThisBuild / Test / fork := true
