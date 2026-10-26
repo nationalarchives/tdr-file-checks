@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.Logger
 
 import java.io._
 import java.nio.file.{Path, Paths}
+import scala.jdk.CollectionConverters._
 
 class SignatureFiles(existingFiles: List[File]) {
 
@@ -24,7 +25,14 @@ object SignatureFiles {
     val droidSignatureFile: String = droidSignature.name + droidSignature.version
 
     val filter: FilenameFilter = (_: File, name: String) => name.startsWith(containerSignatureFile) || name.startsWith(droidSignatureFile)
-    val existingFiles = new File(getClass.getResource("/").toURI).listFiles(filter).toList
+    val existingFiles = getClass.getClassLoader
+      .getResources("")
+      .asScala
+      .filter(_.getProtocol == "file")
+      .map(url => new File(url.toURI))
+      .filter(_.isDirectory)
+      .flatMap(dir => Option(dir.listFiles(filter)).toList.flatten)
+      .toList
     new SignatureFiles(existingFiles)
   }
 }
