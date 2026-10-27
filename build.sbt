@@ -74,6 +74,9 @@ lazy val root = (project in file("."))
       scalaTest % Test,
       wiremock % Test
     ),
+    assembly / assemblyOutputPath := Def.uncached {
+      baseDirectory.value / "target" / "scala-2.13" / (assembly / assemblyJarName).value
+    },
     assembly / skip := false,
     assembly / assemblyJarName := "file-checks.jar"
   )
