@@ -2,7 +2,7 @@ import sbt.*
 
 object Dependencies {
 
-  private val circeVersion = "0.14.16"
+  private val circeVersion = "0.14.17"
 
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.20"
   lazy val generatedGraphql = "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.477"
