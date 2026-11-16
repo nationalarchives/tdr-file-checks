@@ -13,8 +13,9 @@ jobs:
     uses: nationalarchives/tdr-github-actions/.github/workflows/tdr_test.yml@b98899c2acfaf872e0053671743a5b1284b0dab0 # v0.0.43
     with:
       repo-name: tdr-file-checks
-      java-version: '21'
+      java-version: $JAVA_RUNTIME
       test-command: |
         AWS_REGION=eu-west-2 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test sbt "scalafmtCheckAll; test"
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      JAVA_RUNTIME: ${{ secrets.JAVA_RUNTIME }}
