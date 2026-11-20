@@ -36,7 +36,7 @@ jobs:
       lambda-name: file-checks
       repo-name: tdr-file-checks
       artifact-name: file-checks
-      java-version: '21'
+      java-version: ${{vars.JAVA_RUNTIME}}
       build-command: |
         curl -L "https://cdn.nationalarchives.gov.uk/documents/${{ needs.extract-config.outputs.droid-download-name }}${{ needs.extract-config.outputs.droid-version }}.xml" -o "src/main/resources/${{ needs.extract-config.outputs.droid-download-name }}${{ needs.extract-config.outputs.droid-version }}.xml"
         curl -L "https://cdn.nationalarchives.gov.uk/documents/${{ needs.extract-config.outputs.containers-download-name }}${{ needs.extract-config.outputs.containers-version }}.xml" -o "src/main/resources/${{ needs.extract-config.outputs.containers-download-name }}${{ needs.extract-config.outputs.containers-version }}.xml"
